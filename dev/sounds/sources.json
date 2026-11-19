@@ -1,0 +1,187 @@
+{
+  "_comment": "The sounds of the game, each cut from a CC0 recording on Freesound (see THIRD_PARTY_NOTICES.md); dev/sounds/cut_sounds.py downloads the high-quality previews and cuts them into assets/sounds/. start and end are in seconds of the recording; a loop is cross-faded seamlessly at its seam; effects are those of sox.",
+  "sounds": [
+    {
+      "name": "hit_soft",
+      "freesound": 651292,
+      "author": "f3bbbo",
+      "title": "Digging in wet course sand (1)",
+      "start": 0.03,
+      "end": 0.3
+    },
+    {
+      "name": "hit_hard",
+      "freesound": 431019,
+      "author": "CamoMano",
+      "title": "Stone hit",
+      "start": 0.03,
+      "end": 0.3
+    },
+    {
+      "name": "break",
+      "freesound": 522099,
+      "author": "magnuswaker",
+      "title": "Concrete SMASH 2",
+      "start": 0.0,
+      "end": 0.7
+    },
+    {
+      "name": "swing",
+      "freesound": 60013,
+      "author": "qubodup",
+      "title": "Whoosh",
+      "start": 0.02,
+      "end": 0.28
+    },
+    {
+      "name": "gem",
+      "freesound": 545238,
+      "author": "Mr._Fritz_",
+      "title": "Item Sparkle",
+      "start": 0.0,
+      "end": 0.57
+    },
+    {
+      "name": "booster",
+      "freesound": 264981,
+      "author": "renatalmar",
+      "title": "SFX Magic",
+      "start": 0.0,
+      "end": 1.0
+    },
+    {
+      "name": "fuse",
+      "freesound": 316682,
+      "author": "Alex_hears_things",
+      "title": "sparkler_fuse_nm.wav",
+      "start": 8.0,
+      "end": 10.0,
+      "loop": true
+    },
+    {
+      "name": "explosion",
+      "freesound": 587183,
+      "author": "derplayer",
+      "title": "explosion_03.wav",
+      "start": 0.04,
+      "end": 1.3
+    },
+    {
+      "name": "splash",
+      "freesound": 398032,
+      "author": "swordofkings128",
+      "title": "Splash",
+      "start": 0.15,
+      "end": 0.6
+    },
+    {
+      "name": "blub",
+      "freesound": 235264,
+      "author": "Godowan",
+      "title": "bubble1.wav",
+      "start": 0.0,
+      "end": 0.35
+    },
+    {
+      "name": "water_pour",
+      "freesound": 415027,
+      "author": "roman_cgr",
+      "title": "small fountain",
+      "start": 30.0,
+      "end": 33.0,
+      "loop": true
+    },
+    {
+      "name": "sealed",
+      "freesound": 323725,
+      "author": "Reitanna",
+      "title": "thunk.wav",
+      "start": 0.05,
+      "end": 0.35
+    },
+    {
+      "name": "dragon",
+      "freesound": 442964,
+      "author": "qubodup",
+      "title": "Dragon Roar",
+      "start": 0.7,
+      "end": 1.7,
+      "effects": [
+        "highpass",
+        "60"
+      ]
+    },
+    {
+      "name": "spit",
+      "freesound": 539972,
+      "author": "Za-Games",
+      "title": "Fire Burst Flash",
+      "start": 0.0,
+      "end": 0.6
+    },
+    {
+      "name": "fizzle",
+      "freesound": 155660,
+      "author": "the_semen_incident",
+      "title": "cig_extinguish.wav",
+      "start": 0.0,
+      "end": 0.5
+    },
+    {
+      "name": "dizzy",
+      "freesound": 540790,
+      "author": "magnuswaker",
+      "title": "Boing 2",
+      "start": 0.0,
+      "end": 0.6
+    },
+    {
+      "name": "shielded",
+      "freesound": 96132,
+      "author": "BMacZero",
+      "title": "Bing1.wav",
+      "start": 0.02,
+      "end": 0.45
+    },
+    {
+      "name": "rope",
+      "freesound": 527394,
+      "author": "MPierluissi",
+      "title": "ROPEMvmt_Rope Zip Fast_MP_1.wav",
+      "start": 0.1,
+      "end": 0.4
+    },
+    {
+      "name": "select",
+      "freesound": 256116,
+      "author": "kwahmah_02",
+      "title": "Click.wav",
+      "start": 0.0,
+      "end": 0.05
+    },
+    {
+      "name": "click",
+      "freesound": 467951,
+      "author": "benzix2",
+      "title": "UI Button Click",
+      "start": 0.0,
+      "end": 0.12
+    },
+    {
+      "name": "won",
+      "freesound": 397355,
+      "author": "plasterbrain",
+      "title": "Tada Fanfare A",
+      "start": 0.0,
+      "end": 1.7
+    },
+    {
+      "name": "flooded",
+      "freesound": 834512,
+      "author": "YoshikaMiyafuji",
+      "title": "Fail Sound (Wa-Wa-Wah)",
+      "start": 0.0,
+      "end": 1.9
+    }
+  ]
+}
