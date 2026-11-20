@@ -25,11 +25,22 @@ const _DWARF_COLORS := ["red", "blue", "green", "yellow"]
 const _DWARF_TALL := 244.0 / 362.0
 const _DWARF_FEET := Vector2(0.54, 328.0 / 362.0)
 
+## The loaded pictures, by their path. We must keep them: a picture which is
+## freed right after a draw call is drawn white, since the frame is rendered
+## later.
+static var _pictures := {}
 
-## The picture of the path under assets/pictures/ (Godot caches the loaded
-## pictures, so that this is cheap).
+
+## The picture of the path under assets/pictures/ (loaded once).
 static func picture(path: String) -> Texture2D:
-    return load(_PICTURES + path)
+    if not _pictures.has(path):
+        _pictures[path] = load(_PICTURES + path)
+    return _pictures[path]
+
+
+## Forget the loaded pictures (when the game quits, so that none is left in use).
+static func forget_pictures() -> void:
+    _pictures.clear()
 
 
 ## A number in [0, 1) which depends only on the integers, for the details which
@@ -107,45 +118,23 @@ static func gas_pocket(canvas: CanvasItem, rect: Rect2, world: int, time: float)
     canvas.draw_circle(center, s * 0.18, Color(0.8, 1.0, 0.35, 0.8))
 
 
-## A miner's helmet with its lamp, for a head in the camera picture: the
-## middle of the top of the head box of YOLOX, and its size (in pixels); the
-## brim has the color of the player's dwarf.
+## A miner's helmet with its glowing lamp, for a head in the camera picture:
+## the middle of the top of the head box of YOLOX, and its size (in pixels);
+## the brim has the color of the dwarf of the slot (white for -1).
 static func miner_hat(
-    canvas: CanvasItem, top: Vector2, width: float, brim: Color, time: float
+    canvas: CanvasItem, top: Vector2, size: float, slot: int, time: float
 ) -> void:
-    var w := width * 0.95
+    var color: String = "white" if slot < 0 or slot > 3 else _DWARF_COLORS[slot]
+    var texture := picture("helmets/%s.png" % color)
+    var width := size * 1.3
     # NOTE (mristin):
     # The head boxes of YOLOX reach about a quarter of their height above the
-    # hair; the brim sits on the crown of the head.
-    var dome := top + Vector2(0, width * 0.42)
-    # The light of the lamp, a soft cone forwards (towards the camera: up).
-    var lamp := dome + Vector2(0, -w * 0.3)
-    var flicker := 0.85 + 0.15 * sin(time * 7.0)
-    canvas.draw_circle(lamp, w * 0.45, Color(1.0, 0.95, 0.6, 0.12 * flicker))
-    canvas.draw_circle(lamp, w * 0.26, Color(1.0, 0.95, 0.6, 0.18 * flicker))
-    # The dome.
-    var points := PackedVector2Array()
-    for k in range(17):
-        var a := PI + PI * k / 16.0
-        points.append(dome + Vector2(cos(a) * w * 0.42, sin(a) * w * 0.4))
-    var outline := points.duplicate()
-    canvas.draw_colored_polygon(points, STEEL)
-    outline.append(outline[0])
-    canvas.draw_polyline(outline, OUTLINE, maxf(2.0, w * 0.03))
-    canvas.draw_line(
-        dome + Vector2(-w * 0.2, -w * 0.3),
-        dome + Vector2(-w * 0.05, -w * 0.36),
-        Color(1, 1, 1, 0.7),
-        maxf(2.0, w * 0.03)
-    )
-    # The brim, in the color of the dwarf.
-    var brim_rect := Rect2(dome + Vector2(-w * 0.55, -w * 0.02), Vector2(w * 1.1, w * 0.12))
-    _rounded(canvas, brim_rect.grow(maxf(1.5, w * 0.02)), w * 0.06, OUTLINE)
-    _rounded(canvas, brim_rect, w * 0.05, brim)
-    # The lamp.
-    canvas.draw_circle(lamp, w * 0.11, OUTLINE)
-    canvas.draw_circle(lamp, w * 0.09, Color("#ffe65a"))
-    canvas.draw_circle(lamp, w * 0.045, Color.WHITE)
+    # hair; the bottom of the brim (at 75 % of the picture) lies on the
+    # forehead.
+    var brim := top + Vector2(0, size * 0.5)
+    var rect := Rect2(brim - Vector2(width * 0.5, width * 0.75), Vector2(width, width))
+    var flicker := 0.92 + 0.08 * sin(time * 7.0)
+    canvas.draw_texture_rect(texture, rect, false, Color(flicker, flicker, flicker, 1.0))
 
 
 ## The line which a player's head must rise above for a jump, in the camera
@@ -263,14 +252,16 @@ static func dwarf(
         pose = "spring_boots"
     elif "gold_pick" in boosters:
         pose = "golden_pickaxe"
-    elif bool(state.get("walking", false)):
-        pose = "walk_a" if fmod(time * 6.0, 2.0) < 1.0 else "walk_b"
+    var walking := bool(state.get("walking", false)) and swing <= 0.0
+    if walking and pose == "idle":
+        # NOTE (mristin):
+        # A walk cycle of six frames, ten frames a second.
+        pose = "walk_%d" % (1 + int(fmod(time * 10.0, 6.0)))
     var texture := picture("dwarves/%s/%s.png" % [_DWARF_COLORS[clampi(slot, 0, 3)], pose])
     var size := Vector2.ONE * height / _DWARF_TALL
     var facing := int(state.get("facing", 1))
-    var origin := feet - Vector2(_DWARF_FEET.x * size.x * facing, _DWARF_FEET.y * size.y)
-    canvas.draw_set_transform(origin, 0.0, Vector2(facing, 1))
-    canvas.draw_texture_rect(texture, Rect2(Vector2.ZERO, size), false)
+    canvas.draw_set_transform(feet, 0.0, Vector2(facing, 1))
+    canvas.draw_texture_rect(texture, Rect2(-_DWARF_FEET * size, size), false)
     canvas.draw_set_transform(Vector2.ZERO)
 
 

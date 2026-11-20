@@ -24,6 +24,7 @@ var _particles: Array[Dictionary] = []
 ## The explosions which still show: "pos" (in cells), "time" (since the blast)
 ## and "seed".
 var _blasts: Array[Dictionary] = []
+var _warning_layer := EffectLayer.new("res://scenes/effects/warning.gdshader")
 var _gas_layer := EffectLayer.new("res://scenes/effects/gas.gdshader")
 var _blast_layer := EffectLayer.new("res://scenes/effects/explosion.gdshader")
 var _shake := 0.0
@@ -34,6 +35,8 @@ func _init(a_mine: Mine, a_world_index: int) -> void:
     mine = a_mine
     world_index = a_world_index
     world = LevelCatalog.WORLDS[a_world_index]
+    _warning_layer.paint = _paint_warnings
+    add_child(_warning_layer)
     _gas_layer.paint = _paint_gas
     add_child(_gas_layer)
     _blast_layer.paint = _paint_blasts
@@ -203,7 +206,6 @@ func _draw() -> void:
     _draw_water(first, last)
     _draw_items(first, last)
     _draw_chest()
-    _draw_warnings()
     for dwarf in mine.dwarves:
         _draw_dwarf(dwarf)
     for fire in mine.fires:
@@ -329,22 +331,26 @@ func _draw_chest() -> void:
     Art.chest(self, to_screen(Vector2(mine.chest.x + 0.5, mine.chest.y + 1.0)), CELL * 1.1, _time)
 
 
-func _draw_warnings() -> void:
+## Draw the warnings of the dragons' fire: a column of heat down to where the
+## fire will fall, stronger until the dragon spits (see
+## scenes/effects/warning.gdshader).
+func _paint_warnings(canvas: CanvasItem) -> void:
+    var white := _warning_layer.white()
     for dragon in mine.dragons:
         if dragon.spat:
             continue
-        # NOTE (mristin):
-        # A red glow down the column where the fire will fall, so that the
-        # dwarves can step aside.
         var x := dragon.column
-        var y := int(floor(mine.view_top))
-        var bottom := y
+        var bottom := int(floor(mine.view_top))
         while bottom < mine.height and not mine.is_solid(x, bottom):
             bottom += 1
-        var top := to_screen(Vector2(x, mine.view_top))
-        var end := to_screen(Vector2(x, bottom))
-        var pulse := 0.25 + 0.2 * sin(_time * 12.0)
-        draw_rect(Rect2(top.x + 8, top.y, CELL - 16, end.y - top.y), Color(1.0, 0.25, 0.1, pulse))
+        var top := to_screen(Vector2(x - 0.25, mine.view_top))
+        var end := to_screen(Vector2(x + 1.25, bottom + 0.35))
+        var rect := Rect2(top, end - top)
+        var ground := (to_screen(Vector2(x, bottom)).y - top.y) / maxf(1.0, rect.size.y)
+        var strength := clampf(dragon.time / Mine.DRAGON_WARNING, 0.15, 1.0)
+        canvas.draw_texture_rect(
+            white, rect, false, Color(strength, Art.hash01(x, 7, 3), ground, 1.0)
+        )
 
 
 func _draw_dwarf(dwarf: Mine.Dwarf) -> void:

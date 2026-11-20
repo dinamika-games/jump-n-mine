@@ -3,7 +3,8 @@
 Cut the painted sprite sheets into the pictures of the game, assets/pictures/.
 
 The sheets were painted from the prompts in dev/pictures/prompts/ (see
-CONTRIBUTING.md). Unpack them into one folder and run:
+CONTRIBUTING.md). Unpack them into one folder (the helmets into helmets/, the
+walk cycles into walk/) and run:
 
     python3 dev/pictures/cut_sprites.py <folder with the sheets>
 
@@ -25,8 +26,8 @@ OUTPUT = REPO / "assets" / "pictures"
 
 DWARF_POSES = [
     "idle",
-    "walk_a",
-    "walk_b",
+    None,  # the walking frames are replaced by the walk cycles
+    None,
     "raised",
     "swing",
     "hit_down",
@@ -108,8 +109,32 @@ def main() -> int:
 
     for color, sheet in DWARF_SHEETS.items():
         for pose, cell in zip(DWARF_POSES, cells(load(sheet), 4, 3)):
+            if pose is None:
+                # The walking frames of the sheets are replaced by the walk cycles.
+                continue
             save(
                 cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS), f"dwarves/{color}/{pose}.png"
+            )
+
+    # NOTE (mristin):
+    # The walk cycles (six frames each) were painted smaller than the other
+    # poses; we scale each sheet as a whole (so that the frames keep their
+    # motion) to the height of the standing dwarf (244 of 362 px), with the
+    # feet on its baseline (328 of 362 px).
+    for color in DWARF_SHEETS:
+        frames = cells(load(f"walk/dwarf_walk_{color}.png"), 6, 1)
+        box = common_box(frames)
+        scale = 244.0 / (box[3] - box[1])
+        for k, frame in enumerate(frames):
+            dwarf = frame.crop(box)
+            dwarf = dwarf.resize(
+                (round(dwarf.width * scale), round(dwarf.height * scale)), Image.LANCZOS
+            )
+            cell = Image.new("RGBA", (362, 362), (0, 0, 0, 0))
+            cell.alpha_composite(dwarf, (round(196 - dwarf.width / 2), 328 - dwarf.height))
+            save(
+                cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS),
+                f"dwarves/{color}/walk_{k + 1}.png",
             )
 
     blocks = cells(load("jump_n_mine_blocks/blocks_6x3_320px.png"), 6, 3)
@@ -170,6 +195,13 @@ def main() -> int:
     box = common_box(fire)
     for k, frame in enumerate(fire):
         save(fit(frame.crop(box), 140), f"dragon/fire_{k + 1}.png")
+
+    # NOTE (mristin):
+    # The miner's helmets over the players in the camera picture; the bottom of
+    # the brim lies at 75 % of the height of each picture.
+    for color in ["red", "blue", "green", "yellow", "white"]:
+        helmet = load(f"helmets/helmet_{color}_front.png")
+        save(helmet.resize((256, 256), Image.LANCZOS), f"helmets/{color}.png")
 
     title = Image.open(source / "jump_n_mine_title/jump_n_mine_title_1920x1080.png").convert("RGB")
     save(title, "title.png")

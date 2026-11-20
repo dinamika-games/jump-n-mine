@@ -115,7 +115,7 @@ func _draw_camera() -> void:
         var size: float = head["size"] * rect.size.y
         var top := rect.position + position * rect.size - Vector2(0, size * 0.5)
         var slot := int(dwarf_of_head.get(id, -1))
-        var brim := Dwarves.color(slot) if slot >= 0 else Color(0.8, 0.8, 0.8)
+        var brim := Dwarves.color(slot) if slot >= 0 else Color(0.85, 0.85, 0.85)
         var line: float = head.get("jump_line", NAN)
         if not is_nan(line):
             var center_x := rect.position.x + position.x * rect.size.x
@@ -127,7 +127,7 @@ func _draw_camera() -> void:
                 bool(head.get("jumping", false)),
                 maxf(4.0, rect.size.y * 0.018)
             )
-        Art.miner_hat(self, top, size, brim, _time + id)
+        Art.miner_hat(self, top, size, slot, _time + id)
         _draw_jump_meter(head, top + Vector2(size * 0.75, size * 0.2), size, brim)
 
 

@@ -24,7 +24,7 @@ class Painter:
             var head := heads[k]
             var size := maxf(head.size.x, head.size.y) * 2.0
             var center := rect.position + head.get_center() * 2.0
-            Art.miner_hat(self, center - Vector2(0, size * 0.5), size, Dwarves.color(k), 0.0)
+            Art.miner_hat(self, center - Vector2(0, size * 0.5), size, k, 0.0)
 
 
 func _initialize() -> void:

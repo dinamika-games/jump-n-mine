@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-## Escape twice quits the game (the autoload QuitGuard): the first Escape does
+## Escape twice quits the game (the autoload QuitGuard), and the pictures are
+## let go when the game quits (see [method Art.forget_pictures]). The first Escape does
 ## what it does on the screen (back in the menus, the break in a level) and
 ## shows that a second one quits; a second Escape within
 ## [constant WINDOW] seconds quits.
@@ -40,6 +41,10 @@ func _input(event: InputEvent) -> void:
         return
     _last_escape = now
     _label.visible = true
+
+
+func _exit_tree() -> void:
+    Art.forget_pictures()
 
 
 func _process(_delta: float) -> void:

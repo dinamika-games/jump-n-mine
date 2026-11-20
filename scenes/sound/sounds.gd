@@ -254,6 +254,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+    stop_all()
     for player in _players:
         player.stream = null
     for sound in _loops:
@@ -281,6 +282,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## Play the sound of the name (see [constant _RECIPES]), a little higher or
 ## lower by the pitch.
 func play(sound: String, pitch := 1.0, volume_db := 0.0) -> void:
+    # NOTE (mristin):
+    # The dummy driver (headless, and the tests) never mixes, so the sounds
+    # would never let go of their streams; nobody hears them anyway.
+    if AudioServer.get_driver_name() == "Dummy":
+        return
     var stream := _stream(sound)
     if stream == null:
         return
@@ -294,6 +300,8 @@ func play(sound: String, pitch := 1.0, volume_db := 0.0) -> void:
 
 ## Keep the loop of the name (see [constant _LOOPS]) playing, or stop it.
 func loop(sound: String, on: bool) -> void:
+    if AudioServer.get_driver_name() == "Dummy":
+        return
     if not _loops.has(sound):
         if not on:
             return
@@ -307,6 +315,14 @@ func loop(sound: String, on: bool) -> void:
         looping.play()
     elif not on and looping.playing:
         looping.stop()
+
+
+## Stop all the sounds; the audio server lets go of them at its next mix (the
+## tests wait for it before they quit, so that nothing stays in use).
+func stop_all() -> void:
+    for player in _players:
+        player.stop()
+    stop_loops()
 
 
 ## Stop all the loops, e.g., when the level ends.

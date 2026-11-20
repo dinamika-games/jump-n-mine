@@ -261,7 +261,7 @@ static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
                 bool(head.get("jumping", false)),
                 10.0
             )
-        Art.miner_hat(canvas, top, size, Dwarves.color(rank), time + rank)
+        Art.miner_hat(canvas, top, size, rank, time + rank)
 
 
 func _draw_card(i: int, focused: bool) -> void:
@@ -273,19 +273,19 @@ func _draw_card(i: int, focused: bool) -> void:
         color = Color("#3a3440")
     var lift := -12.0 if focused and not disabled else 0.0
     rect.position.y += lift
-    draw_rect(rect.grow(6.0), Color(0, 0, 0, 0.35))
+    # The shadow, rounded like the card.
+    Art._rounded(
+        self, Rect2(rect.position + Vector2(0, 10), rect.size).grow(4.0), 26.0, Color(0, 0, 0, 0.35)
+    )
     Art._rounded(
         self, rect.grow(4.0), 26.0, Color("#ffe2a0") if focused and not disabled else Art.OUTLINE
     )
     Art._rounded(self, rect, 22.0, color)
-    Art._rounded(
-        self,
-        Rect2(rect.position + Vector2(10, 10), Vector2(rect.size.x - 20, 200)),
-        16.0,
-        color.lightened(0.12)
-    )
     var text_color := Color("#8a8090") if disabled else Color.WHITE
     if rect.size.y < 300.0:
+        # NOTE (mristin):
+        # A low card has only its title, on a lighter band inside the card.
+        Art._rounded(self, rect.grow(-10.0), 16.0, color.lightened(0.12))
         _text_wrapped(
             str(card["title"]),
             Rect2(
@@ -298,6 +298,12 @@ func _draw_card(i: int, focused: bool) -> void:
             text_color
         )
         return
+    Art._rounded(
+        self,
+        Rect2(rect.position + Vector2(10, 10), Vector2(rect.size.x - 20, 200)),
+        16.0,
+        color.lightened(0.12)
+    )
     _draw_icon(
         str(card.get("icon", "")), rect.position + Vector2(rect.size.x / 2.0, 115.0), disabled
     )
