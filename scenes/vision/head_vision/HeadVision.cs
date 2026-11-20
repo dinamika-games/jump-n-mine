@@ -31,12 +31,14 @@ public partial class HeadVision : Node
     /// <summary>
     /// Signal that a head moved: its position and size normalized to the picture,
     /// how high it is above standing (in head sizes), the line which it must rise
-    /// above for a jump (normalized to the picture; NaN before it is known), and
-    /// whether the player is in a jump now.
+    /// above for a jump (normalized to the picture; NaN before it is known),
+    /// whether the player is in a jump now, and the tilt of the head (radians,
+    /// clockwise in the mirrored picture, from the eyes; 0 while unknown).
     /// </summary>
+    /// <remarks>Everything is smoothed with 1€ filters (see <see cref="Track"/>).</remarks>
     [Signal]
     public delegate void HeadMovedEventHandler(
-        int id, Vector2 position, float size, float rise, float jumpLine, bool jumping
+        int id, Vector2 position, float size, float rise, float jumpLine, bool jumping, float roll
     );
 
     /// <summary>Signal that a head left the picture.</summary>
@@ -49,6 +51,13 @@ public partial class HeadVision : Node
     /// </summary>
     [Signal]
     public delegate void HeadJumpedEventHandler(int id, float strength);
+
+    /// <summary>
+    /// Signal that the player of the head swung an arm out to the side: -1 to
+    /// the left of the mirrored picture, 1 to the right (see <see cref="SwingGauge"/>).
+    /// </summary>
+    [Signal]
+    public delegate void HeadSwungEventHandler(int id, int side);
 
     [Export]
     public int MaxHeads = 8;
@@ -76,6 +85,10 @@ public partial class HeadVision : Node
         "res://scenes/vision/yunet/model/face_detection_yunet_2023mar_dynamic.onnx"
     );
 
+    private const string _rtmposePath = (
+        "res://scenes/vision/rtmpose/model/rtmpose_t_body7_256x192.onnx"
+    );
+
     private const string _sfacePath = (
         "res://scenes/vision/sface/model/face_recognition_sface_2021dec_int8.onnx"
     );
@@ -92,12 +105,20 @@ public partial class HeadVision : Node
     [Export]
     public float ReIdMemory = 1800f;
 
+    /// <summary>
+    /// Estimate the poses of at most this many players per frame, those whose
+    /// poses are the oldest; a pose costs about 10 to 16 ms on a laptop CPU.
+    /// </summary>
+    [Export]
+    public int PoseBudget = 1;
+
     private enum EventKind
     {
         Appeared,
         Moved,
         Lost,
         Jumped,
+        Swung,
     }
 
     private readonly struct HeadEvent
@@ -109,6 +130,7 @@ public partial class HeadVision : Node
         public readonly float Rise;
         public readonly float JumpLine;
         public readonly bool Jumping;
+        public readonly float Roll;
 
         public HeadEvent(
             EventKind kind,
@@ -117,7 +139,8 @@ public partial class HeadVision : Node
             float size,
             float rise,
             float jumpLine = float.NaN,
-            bool jumping = false
+            bool jumping = false,
+            float roll = 0f
         )
         {
             Kind = kind;
@@ -127,6 +150,7 @@ public partial class HeadVision : Node
             Rise = rise;
             JumpLine = jumpLine;
             Jumping = jumping;
+            Roll = roll;
         }
     }
 
@@ -238,6 +262,10 @@ public partial class HeadVision : Node
         byte[]? yunet = FileAccess.FileExists(_yunetPath) ? FileAccess.GetFileAsBytes(_yunetPath) : null;
         byte[]? sface = FileAccess.FileExists(_sfacePath) ? FileAccess.GetFileAsBytes(_sfacePath) : null;
 
+        // NOTE (mristin):
+        // Without the pose model, the helmets do not tilt.
+        byte[]? rtmpose = FileAccess.FileExists(_rtmposePath) ? FileAccess.GetFileAsBytes(_rtmposePath) : null;
+
         var tracker = new MultiHeadTracker
         {
             MaxHeads = MaxHeads,
@@ -251,7 +279,7 @@ public partial class HeadVision : Node
         _status = "Loading the head detector...";
 
         _inferenceRunning = true;
-        _inferenceThread = new System.Threading.Thread(() => InferenceLoop(model, yunet, sface, tracker))
+        _inferenceThread = new System.Threading.Thread(() => InferenceLoop(model, yunet, sface, rtmpose, tracker))
         {
             IsBackground = true,
             Name = "Head tracking"
@@ -385,11 +413,15 @@ public partial class HeadVision : Node
         }
     }
 
-    private void InferenceLoop(byte[] model, byte[]? yunet, byte[]? sface, MultiHeadTracker tracker)
+    private void InferenceLoop(
+        byte[] model, byte[]? yunet, byte[]? sface, byte[]? rtmpose, MultiHeadTracker tracker
+    )
     {
         YoloxModel? detector = null;
         FaceEmbedder? faces = null;
+        RtmPoseModel? poses = null;
         var gauges = new Dictionary<int, JumpGauge>();
+        var swings = new Dictionary<int, SwingGauge>();
 
         try
         {
@@ -401,6 +433,15 @@ public partial class HeadVision : Node
             else
             {
                 GD.PushWarning("The face models are missing; the players are not recognized when they come back.");
+            }
+
+            if (rtmpose != null)
+            {
+                poses = new RtmPoseModel(rtmpose);
+            }
+            else
+            {
+                GD.PushWarning("The pose model is missing; the helmets do not tilt.");
             }
 
             GD.Print("The head tracking is ready.");
@@ -436,7 +477,8 @@ public partial class HeadVision : Node
                     track.Size / cameraSize.Y,
                     gauge?.Rise ?? 0f,
                     gauge == null ? float.NaN : gauge.JumpLine / cameraSize.Y,
-                    gauge?.IsJumping ?? false
+                    gauge?.IsJumping ?? false,
+                    track.Roll
                 );
             }
 
@@ -454,7 +496,7 @@ public partial class HeadVision : Node
                     gauges[id] = gauge;
                 }
 
-                float strength = gauge.Observe(timestamp, track.RawPosition.Y, track.RawSize);
+                float strength = gauge.Observe(timestamp, track.JumpY, track.JumpSize);
                 if (strength > 0f)
                 {
                     // NOTE (mristin):
@@ -476,6 +518,7 @@ public partial class HeadVision : Node
             tracker.OnLost = id =>
             {
                 gauges.Remove(id);
+                swings.Remove(id);
                 _events.Enqueue(new HeadEvent(EventKind.Lost, id, Vector2.Zero, 0f, 0f));
             };
 
@@ -511,6 +554,28 @@ public partial class HeadVision : Node
                 }
 
                 tracker.Update(result.Heads, cameraSize, frame.Timestamp, embed);
+
+                if (poses != null)
+                {
+                    foreach (var track in EstimatePoses(poses, tracker, frame, result))
+                    {
+                        if (!swings.TryGetValue(track.Id, out var swing))
+                        {
+                            swing = new SwingGauge();
+                            swings[track.Id] = swing;
+                        }
+
+                        int side = swing.Observe(
+                            frame.Timestamp, track.Pose!, track.Size, frame.Width, frame.Height
+                        );
+                        if (side != 0)
+                        {
+                            // NOTE (mristin):
+                            // The side of the swing travels as its rise.
+                            _events.Enqueue(new HeadEvent(EventKind.Swung, track.Id, Vector2.Zero, 0f, side));
+                        }
+                    }
+                }
             }
         }
         catch (Exception exception)
@@ -522,9 +587,40 @@ public partial class HeadVision : Node
         {
             detector?.Dispose();
             faces?.Dispose();
+            poses?.Dispose();
         }
 
         GD.Print("Left the inference loop.");
+    }
+
+    /// <summary>
+    /// Estimate the poses of the players seen in the frame, at most
+    /// <see cref="PoseBudget"/> of them, those whose poses are the oldest.
+    /// </summary>
+    /// <returns>The tracks whose poses were estimated.</returns>
+    private List<Track> EstimatePoses(
+        RtmPoseModel poses, MultiHeadTracker tracker, Frame frame, DetectionResult result
+    )
+    {
+        var candidates = new List<Track>();
+        foreach (var track in tracker.Tracks)
+        {
+            if (track.Confirmed && track.RawHead.HasValue && track.LastSeen == frame.Timestamp)
+            {
+                candidates.Add(track);
+            }
+        }
+        candidates.Sort((a, b) => a.PoseTimestamp.CompareTo(b.PoseTimestamp));
+
+        int count = Math.Min(PoseBudget, candidates.Count);
+        for (int i = 0; i < count; i++)
+        {
+            var track = candidates[i];
+            var box = Pose.PlayerBox(track.RawHead!.Value, result.Bodies, frame.Width, frame.Height);
+            var pose = poses.Estimate(frame, box);
+            track.ObservePose(pose, frame.Timestamp, frame.Width, frame.Height);
+        }
+        return candidates.GetRange(0, count);
     }
 
     public override void _Process(double delta)
@@ -547,7 +643,8 @@ public partial class HeadVision : Node
                         headEvent.Size,
                         headEvent.Rise,
                         headEvent.JumpLine,
-                        headEvent.Jumping
+                        headEvent.Jumping,
+                        headEvent.Roll
                     );
                     break;
 
@@ -558,6 +655,11 @@ public partial class HeadVision : Node
                 case EventKind.Jumped:
                     GD.Print($"The head {headEvent.Id} jumped (strength {headEvent.Rise:F1}).");
                     EmitSignal(SignalName.HeadJumped, headEvent.Id, headEvent.Rise);
+                    break;
+
+                case EventKind.Swung:
+                    GD.Print($"The head {headEvent.Id} swung to the {(headEvent.Rise < 0f ? "left" : "right")}.");
+                    EmitSignal(SignalName.HeadSwung, headEvent.Id, (int)headEvent.Rise);
                     break;
             }
         }

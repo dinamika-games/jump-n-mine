@@ -4,7 +4,7 @@ Cut the painted sprite sheets into the pictures of the game, assets/pictures/.
 
 The sheets were painted from the prompts in dev/pictures/prompts/ (see
 CONTRIBUTING.md). Unpack them into one folder (the helmets into helmets/, the
-walk cycles into walk/) and run:
+walk cycles into walk/, the sideways strikes into side/) and run:
 
     python3 dev/pictures/cut_sprites.py <folder with the sheets>
 
@@ -55,6 +55,16 @@ BLOCK = 160
 # it at half, so that the dwarf is about 1.05 blocks tall.
 DWARF_CELL = 250
 
+# The frames of the sideways strike (see dev/pictures/prompts/side_strike.md).
+SIDE_POSES = ["side_back", "side_hit", "side_recoil"]
+
+# The feet of the dwarves stand on this line of a 362 px cell (the bottom of
+# their boots, where the boots are nearly opaque).
+DWARF_FEET = 327
+
+# The standing dwarf is this tall in a 362 px cell, from the helmet to the boots.
+DWARF_STANDING = 230
+
 
 def cells(image: Image.Image, cols: int, rows: int) -> list:
     """Cut the image into a grid of cells, row by row."""
@@ -98,6 +108,59 @@ def fit(image: Image.Image, longest: int) -> Image.Image:
     return image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
 
 
+def opaque_height(image: Image.Image) -> int:
+    """The height of the nearly opaque pixels (without the glow of the lamp)."""
+    box = image.getchannel("A").point(lambda a: 255 if a > 200 else 0).getbbox()
+    return box[3] - box[1]
+
+
+def cut_walk_cycles(load) -> None:
+    """Cut the six frames of the walk cycle of every dwarf."""
+    # NOTE (mristin):
+    # The walk cycles were painted smaller than the other poses. We scale each
+    # sheet as a whole (so that the frames keep their motion) so that the
+    # third frame, passing with straight legs and the body at its highest, is
+    # as tall as the standing dwarf (230 of 362 px from the helmet to the
+    # boots). Every frame stands with its lower foot on the baseline of the
+    # other poses.
+    for color in DWARF_SHEETS:
+        frames = cells(load(f"walk/dwarf_walk_{color}.png"), 6, 1)
+        box = common_box(frames)
+        scale = DWARF_STANDING / opaque_height(frames[2])
+        for k, frame in enumerate(frames):
+            dwarf = frame.crop(box)
+            dwarf = dwarf.resize(
+                (round(dwarf.width * scale), round(dwarf.height * scale)), Image.LANCZOS
+            )
+            feet = dwarf.getchannel("A").point(lambda a: 255 if a > 200 else 0).getbbox()
+            cell = Image.new("RGBA", (362, 362), (0, 0, 0, 0))
+            cell.alpha_composite(dwarf, (round(196 - dwarf.width / 2), DWARF_FEET - feet[3]))
+            save(
+                cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS),
+                f"dwarves/{color}/walk_{k + 1}.png",
+            )
+
+
+def cut_side_strikes(load) -> None:
+    """Cut the frames of the sideways strike of every dwarf."""
+    # NOTE (mristin):
+    # The sideways strikes were painted at the size of the other poses, but
+    # their feet a few pixels too high; we move each sheet as a whole down to
+    # the baseline, so that the frames keep their motion.
+    for color in DWARF_SHEETS:
+        frames = cells(load(f"side/dwarf_side_{color}.png"), 3, 1)
+        feet = max(
+            frame.getchannel("A").point(lambda a: 255 if a > 200 else 0).getbbox()[3]
+            for frame in frames
+        )
+        for pose, frame in zip(SIDE_POSES, frames):
+            cell = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+            cell.alpha_composite(frame, (0, DWARF_FEET - feet))
+            save(
+                cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS), f"dwarves/{color}/{pose}.png"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", help="the folder with the unpacked sheets")
@@ -116,26 +179,8 @@ def main() -> int:
                 cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS), f"dwarves/{color}/{pose}.png"
             )
 
-    # NOTE (mristin):
-    # The walk cycles (six frames each) were painted smaller than the other
-    # poses; we scale each sheet as a whole (so that the frames keep their
-    # motion) to the height of the standing dwarf (244 of 362 px), with the
-    # feet on its baseline (328 of 362 px).
-    for color in DWARF_SHEETS:
-        frames = cells(load(f"walk/dwarf_walk_{color}.png"), 6, 1)
-        box = common_box(frames)
-        scale = 244.0 / (box[3] - box[1])
-        for k, frame in enumerate(frames):
-            dwarf = frame.crop(box)
-            dwarf = dwarf.resize(
-                (round(dwarf.width * scale), round(dwarf.height * scale)), Image.LANCZOS
-            )
-            cell = Image.new("RGBA", (362, 362), (0, 0, 0, 0))
-            cell.alpha_composite(dwarf, (round(196 - dwarf.width / 2), 328 - dwarf.height))
-            save(
-                cell.resize((DWARF_CELL, DWARF_CELL), Image.LANCZOS),
-                f"dwarves/{color}/walk_{k + 1}.png",
-            )
+    cut_walk_cycles(load)
+    cut_side_strikes(load)
 
     blocks = cells(load("jump_n_mine_blocks/blocks_6x3_320px.png"), 6, 3)
     for w, world in enumerate(WORLDS):

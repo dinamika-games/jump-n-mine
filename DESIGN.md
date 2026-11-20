@@ -2,7 +2,7 @@
 
 **Jump 'n' Mine is a digging game for children, played by jumping in front of a webcam, alone or with up to three friends who come and go as they like.**
 You are a dwarf in a mine.
-Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet.
+Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; wave an arm to the side, and it swings at the block beside it.
 Dig down through the earth and the rock, gather the gems, open the iron gates with the stone plates, mind the gas and the dragons' fire, keep the water out, and find the treasure at the bottom of the mine.
 Nobody dies: when the water floods the mine, the dwarves climb out, wet but happy, and start the level again.
 
@@ -12,7 +12,7 @@ Each level takes about fifteen minutes, and most of it is jumping.
 
 ## 1. Pillars
 
-1. **The exercise is the controller.** The players only step left and right and jump. Every swing of the pickaxe is a jump. The game never says "do jumps"; it shows the dwarf swinging, and the blocks crack.
+1. **The exercise is the controller.** The players only step left and right, jump, and wave an arm to the side. Every swing of the pickaxe is a jump or a wave. The game never says "do jumps"; it shows the dwarf swinging, and the blocks crack.
 2. **Friends dig together, whenever they like.** Up to four players, each with a dwarf, in one mine. A player who steps in front of the camera gets a dwarf, and a player who leaves takes her dwarf along; the puzzles adapt on the fly to who is there. There is no race: the gems and the treasure belong to all.
 3. **Nobody gets hurt.** The fire and the explosions only make a dwarf dizzy for a moment. The flood ends the level, but the dwarves simply climb out and try again.
 4. **Clear at a glance.** The cave is dark and cool, the blocks are warm and bright, and what is special looks special: the glowing green gas, the blue springs in the walls, the iron gates and their stone plates, the gems and the boosters.
@@ -21,7 +21,8 @@ Each level takes about fifteen minutes, and most of it is jumping.
 
 * **Walking:** the dwarf walks to where its player stands: the player's head in the mirrored camera picture, from 12 % to 88 % of its width, maps to the whole width of the mine. A dwarf does not walk through blocks; it stops at them.
 * **Jumping:** a jump counts when the head rises 0.7 head sizes (about 15 cm) above the height where the player stands (`JumpGauge`, measured in head sizes, so that it does not matter how close to the camera the player stands). The next jump counts once the head came back down to 0.35 head sizes above standing, and two jumps are at least 0.3 s apart. The standing height follows the head slowly (4 s), so that a player may step closer or back, and standing up after a crouch of a couple of seconds is no jump. The thresholds are first guesses, to tune with recordings of children.
-* **The swing:** each jump swings the pickaxe **down** at the block under the dwarf's feet; the dwarves never hit sideways. The only exception is a spring: a dwarf who stands right next to an open spring in the wall hammers it shut with its jumps.
+* **The swing:** each jump swings the pickaxe **down** at the block under the dwarf's feet. The only exception is a spring: a dwarf who stands right next to an open spring in the wall hammers it shut with its jumps.
+* **The swing to the side:** a player who swings an arm out to the side (the wrist 1.5 head sizes beyond the shoulder, about at its height, `SwingGauge`) swings the pickaxe **sideways** at the block beside the dwarf, without a hop; every wave of the arm is a hit, so a player who walks into a wall waves it open. Arms raised over the head in a jump, or both arms out at once, do not count. Leaning against a block and jumping still hits only down. The thresholds are first guesses, to tune with recordings of children; without the pose (the keyboard, or no pose model), the dwarves dig staircases as before.
 * **The hop:** each jump also hops the dwarf 1.25 blocks up, so that it climbs onto a step of one block, and jumps over a hole while it walks. To go sideways deeper down, the dwarves dig staircases: dig the block underfoot, hop onto the next one, dig it, and so on.
 * **Hits:** the soft earth breaks after 3 hits, the hard rock after 4; each hit shows bigger cracks.
 * **The keyboard** (without a camera, and for testing): the first dwarf walks with Left and Right and jumps with Up (or Space), the second with A, D and W, the third with J, L and I, the fourth with 4, 6 and 8 of the keypad; the first key of a player brings her dwarf. Escape pauses, and M switches the sound off and on.
@@ -30,7 +31,7 @@ Each level takes about fifteen minutes, and most of it is jumping.
 
 The players have no names and no fixed number:
 
-* **Joining:** a head which appears in the camera picture gets a dwarf of a free color (red, blue, green or yellow, the first free one), let down into the mine on a rope to the deepest dwarf (or, at the start, standing on the grass). In the camera picture, every player wears a **miner's helmet with a glowing lamp**, the brim in the color of her dwarf, so that each child sees which dwarf is hers; over the menu cards, her helmet shows where she points.
+* **Joining:** a head which appears in the camera picture gets a dwarf of a free color (red, blue, green or yellow, the first free one), let down into the mine on a rope to the deepest dwarf (or, at the start, standing on the grass). In the camera picture, every player wears a **miner's helmet with a glowing lamp**, the brim in the color of her dwarf, so that each child sees which dwarf is hers; the helmet sits over her hair and tilts with her head, and her forehead covers the middle of the brim (the game paints the face of the camera picture again over the helmet, with the shadow of the brim), so that she wears it; over the menu cards, her helmet shows where she points.
 * **Leaving:** a dwarf whose head left the picture waits for 4 seconds, and then leaves the mine.
 * **Coming back:** the vision recognizes the players by their faces (section 8): a player who comes back gets her identity, and while her dwarf still waits, her dwarf. A new face is a new player, with a dwarf of its own.
 * **Staying together:** a dwarf left above the screen for 2.5 s is let down on a rope to the deepest dwarf. The screen follows the dwarves and keeps the deepest in view.
@@ -107,7 +108,7 @@ Light tan earth and rock with glowing ember veins in a dark red cave, under an e
 1. **The intro:** the title painting, and Play, Expeditions, How to play and Quit.
 2. **The expeditions** (the sessions of the game): Play asks once each start which expedition goes on. **Continue** the last one (its name and its stars), start a **New expedition**, or go on with one of the two other most recent ones. **Delete** removes an expedition for good in three steps, so that nobody deletes one by chance: Delete, then the card of the expedition, then Delete again (or Keep). Without any expedition, Play goes straight to naming the first one. An expedition does not keep who plays, since the players come and go.
 3. **Naming:** a new expedition is named first; the name starts as the date and the time (e.g., "2026-11-19 14:05"), so that jumping on OK is enough. The keyboard (or the keys on the screen, with the mouse) changes it; the first key replaces it.
-4. **How to play** (the first time of an expedition, and from the intro): a little mine where a dwarf does what a player does, with one short line each: stepping, jumping, the staircase, the cracks and the gems, the gas and the springs, the dragons and the treasure.
+4. **How to play** (the first time of an expedition, and from the intro): a little mine where a dwarf does what a player does, with one short line each: stepping, jumping, the staircase, waving an arm to hit the block beside the dwarf, the cracks and the gems, the gas and the springs, the dragons and the treasure.
 5. **The mines and the levels:** the three worlds with their stars; then the five levels of the world. Finishing a level opens the next; the levels not open yet show a lock.
 6. **The level**, with its bar at the top (the name, the gems, how deep the dwarves came, and how full of water the mine is) and the camera picture in the corner, with a miner's helmet on every player. A tip explains a thing the first time it happens (the first gas, dragon, water, booster, plate, gate and rope).
 7. **The end:** "Treasure found!" with the gems and the stars (Next level, Again, Levels), or "The mine is flooded!" (Try again, Levels). Escape pauses (Go on, Start again, Levels).
@@ -132,8 +133,9 @@ Every expedition is JSON in `user://saves/<id>.json`, with a format version (so 
 * **The camera:** Godot's camera on Linux and macOS; on Windows, Godot 4.6 has no camera, so the game brings [CameraServerExtension](https://github.com/j20001970/godot-cameraserver-extension) along (`scenes/vision/camera_extension.gd`). On macOS, the frames come as two planes, which we convert to RGB (`YcbcrConverter`), and the game asks again for the camera once the permission is granted.
 * **The vision** (`scenes/vision/`) runs ONNX Runtime 1.19.2 (the last version whose libraries run on macOS 11 on both the Intel and the Apple Silicon Macs) on a background thread:
   * **YOLOX-Body-Head-Hand-Face** (nano, 256 x 320) finds the heads on every camera frame;
-  * the **`MultiHeadTracker`** follows them from frame to frame (ByteTrack-like, with a 1€ filter) and keeps the identities of the players who left;
-  * a **`JumpGauge`** for each head counts its jumps on the raw, unsmoothed height;
+  * the **`MultiHeadTracker`** follows them from frame to frame (ByteTrack-like) and keeps the identities of the players who left; everything it follows is smoothed with 1€ filters (`OneEuroFilter`): the position, the size and the speed of each head, its tilt for the helmet, and its height and size for the jumps, the latter with a fast filter which only removes the jitter while the head stands still, so that the jumps keep their tops;
+  * a **`JumpGauge`** for each head counts its jumps on the fast-smoothed height;
+  * **RTMPose-t** (256 x 192, top-down) finds the 17 keypoints of the body of a player, on a crop around her head (five heads wide, down to the waist, and wider if YOLOX finds her body reaching out further); a pose costs about 10 to 16 ms on a laptop CPU, so the players take turns, one pose per frame. The tilt of her helmet comes from the line through her eyes and her ears (YuNet's landmarks do not follow a tilted head);
   * the **`FaceEmbedder`** recognizes the faces: **YuNet** finds the five landmarks of the face in the head box, we align the face to the ArcFace template (112 x 112) by a similarity transform, and **SFace** (int8) gives its embedding of 128 numbers. A new head takes over the identity of a lost player only if their faces are similar enough (a cosine of at least 0.45: the same face gives about 0.95, different people below 0.4); without a face (looking away), the head takes over the player lost most recently. At most one face is computed per frame, and each player's face is refreshed every second.
   * `HeadVision` (the only part which depends on Godot) emits the heads and the jumps as signals; the autoload `Vision` finds the camera and keeps the heads.
 * **The mine** (`Mine`, with `MineWater` and `MinePuzzles`) is the whole game state and its rules, without drawing or input, so that bots play it headless and fast in the tests (`MineBot`: Dijkstra over the places where its dwarf can stand, digging down, walking and hopping, with the cost in jumps; it solves the puzzles, too). `MineView` draws it, with the `EffectLayer`s of the shaders, `Hud` draws the bar and the camera picture, and `Level` binds the heads and the keys to the dwarves.
@@ -142,7 +144,7 @@ Every expedition is JSON in `user://saves/<id>.json`, with a format version (so 
 
 ## 11. The tests
 
-* .NET (`tests/JumpNMine.Tests/`): the `JumpGauge` (standing, jumps, nods, crouches, stepping closer), the `MultiHeadTracker` (with the threshold for new faces), the YOLOX model and the face recognition on test photos, and the conversion of the camera planes.
+* .NET (`tests/JumpNMine.Tests/`): the `JumpGauge` (standing, jumps, nods, crouches, stepping closer), the `MultiHeadTracker` (with the threshold for new faces), the 1€ filter, the YOLOX model, the pose and the tilt of the head (RTMPose) and the face recognition on test photos, and the conversion of the camera planes.
 * Godot (`tests/godot/`): the rules of the mine and the puzzles (`test_mine.gd`), the expeditions (`test_session.gd`), the way through the screens into a level with the keys and a second player who joins (`test_screens.gd`), and bots playing every level alone and three together (`test_levels_world_<n>.gd`).
 
 ## 12. Open questions

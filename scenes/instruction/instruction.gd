@@ -10,6 +10,7 @@ const STEPS := [
     ["Step left and right: your dwarf walks with you.", 4.0],
     ["Jump! Your dwarf swings the pickaxe at the block below.", 5.0],
     ["Dig a step, then hop onto the next block to move sideways.", 5.0],
+    ["Wave an arm to the side: your dwarf hits the block beside it.", 5.0],
     ["Three or four hits break a block. Grab the gems!", 4.0],
     ["Green gas explodes: step away! Hammer the springs shut.", 5.0],
     ["Dragons spit fire from above: step aside! Find the treasure.", 5.0],
@@ -18,6 +19,9 @@ const STEPS := [
 ## The two panels: the player in front of the camera, and her dwarf.
 const YOU := Rect2(150, 370, 640, 430)
 const DWARF := Rect2(1130, 370, 640, 430)
+
+## The skin of the child in the panel of the player.
+const _SKIN := Color("#f2c29b")
 
 ## The size of a block in the little mine.
 const CELL := 104.0
@@ -82,24 +86,28 @@ func _draw() -> void:
     # What the player does: the jumps and the steps of the animation.
     var jump := 0.0
     var lean := 0.0
+    var wave := 0.0
     if step == 0:
         lean = sin(t * TAU)
-    elif step == 5:
+    elif step == 6:
         # Step aside from the dragon's fire.
         lean = -clampf((t - 0.15) * 5.0, 0.0, 1.0)
     elif step == 2:
         lean = clampf(t * 3.0, 0.0, 1.0) * 0.6
         jump = maxf(0.0, sin(clampf((t - 0.35) * 2.5, 0.0, 1.0) * PI))
+    elif step == 3:
+        # Three waves of the arm out to the side, one hit each.
+        wave = maxf(0.0, sin(t * TAU * 3.0))
     else:
         jump = maxf(0.0, sin(t * TAU * 3.0))
 
-    _draw_you(lean, jump)
+    _draw_you(lean, jump, wave)
     _draw_arrow(Vector2((YOU.end.x + DWARF.position.x) / 2.0, YOU.get_center().y))
     _draw_mine(step, t, lean, jump)
 
 
 ## The panel of the player in front of the camera.
-func _draw_you(lean: float, jump: float) -> void:
+func _draw_you(lean: float, jump: float, wave: float) -> void:
     _panel(YOU, "You")
     # A room behind the player, as the camera sees it.
     var wall := YOU.grow(-14.0)
@@ -120,13 +128,22 @@ func _draw_you(lean: float, jump: float) -> void:
     var line_y := standing_head.y - head_r * 1.4
     Art.jump_line(self, line_y, feet.x - 150.0, feet.x + 150.0, jump > 0.5, 8.0)
 
-    _child(feet, head, head_r, jump)
-    Art.miner_hat(self, head - Vector2(0, head_r * 1.35), head_r * 2.7, 0, _clock)
+    _child(feet, head, head_r, jump, wave)
+    Art.miner_hat(
+        self,
+        head - Vector2(0, head_r * 1.75),
+        head_r * 2.7,
+        0,
+        _clock,
+        0.0,
+        func(outline: PackedVector2Array) -> void: _face(head, head_r, outline)
+    )
 
 
-## A child, seen from the front: arms up while she jumps.
-func _child(feet: Vector2, head: Vector2, r: float, jump: float) -> void:
-    var skin := Color("#f2c29b")
+## A child, seen from the front: arms up while she jumps, and her arm on the
+## right of the picture out to the side by the wave (in [0, 1]).
+func _child(feet: Vector2, head: Vector2, r: float, jump: float, wave: float) -> void:
+    var skin := _SKIN
     var shirt := Color("#e04848")
     var pants := Color("#34507a")
     var hip := feet + Vector2(0, -108)
@@ -145,6 +162,9 @@ func _child(feet: Vector2, head: Vector2, r: float, jump: float) -> void:
         # The arms: down at the sides, up in a jump.
         var hand := shoulder + Vector2(side * (52.0 + jump * 18.0), 95.0 - jump * 190.0)
         var elbow := shoulder + Vector2(side * 46.0, 48.0 - jump * 100.0)
+        if side > 0.0:
+            hand = hand.lerp(shoulder + Vector2(150.0, 0.0), wave)
+            elbow = elbow.lerp(shoulder + Vector2(92.0, 4.0), wave)
         draw_line(shoulder + Vector2(side * 30.0, 6), elbow, Art.OUTLINE, 24.0)
         draw_line(elbow, hand, Art.OUTLINE, 24.0)
         draw_line(shoulder + Vector2(side * 30.0, 6), elbow, shirt, 18.0)
@@ -159,9 +179,24 @@ func _child(feet: Vector2, head: Vector2, r: float, jump: float) -> void:
     draw_circle(head, r, skin)
     # The hair, the eyes and a smile.
     draw_arc(head + Vector2(0, -4), r * 0.95, PI * 1.05, PI * 1.95, 16, Color("#7a4a2a"), r * 0.45)
+    _eyes_and_smile(head, r)
+
+
+func _eyes_and_smile(head: Vector2, r: float) -> void:
     for side in [-1.0, 1.0]:
         draw_circle(head + Vector2(side * r * 0.36, r * 0.05), r * 0.11, Art.OUTLINE)
     draw_arc(head + Vector2(0, r * 0.25), r * 0.38, PI * 0.15, PI * 0.85, 10, Art.OUTLINE, 4.0)
+
+
+## The face of the child again, over the brim of her helmet, inside the
+## outline of her face (as the game paints the faces in the camera picture).
+func _face(head: Vector2, r: float, outline: PackedVector2Array) -> void:
+    var circle := PackedVector2Array()
+    for k in range(32):
+        circle.append(head + Vector2.from_angle(k * TAU / 32.0) * r)
+    for part in Geometry2D.intersect_polygons(outline, circle):
+        draw_colored_polygon(part, _SKIN)
+    _eyes_and_smile(head, r)
 
 
 ## The panel of the dwarf in its little mine.
@@ -173,16 +208,16 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
     var origin := inner.position + Vector2((inner.size.x - 5 * CELL) / 2.0, inner.size.y - 2 * CELL)
 
     var damage := 0.0
-    if step == 1 or step == 3:
+    if step == 1 or step == 4:
         damage = clampf(floor(t * 3.0) / 3.0, 0.0, 0.67)
     for x in range(5):
         for y in range(2):
             var rect := Rect2(origin + Vector2(x * CELL, y * CELL), Vector2(CELL, CELL))
-            if step == 3 and x == 2 and y == 0 and t > 0.75:
+            if step == 4 and x == 2 and y == 0 and t > 0.75:
                 Art.gem(self, rect.get_center() - Vector2(0, (t - 0.75) * 400.0), 30.0, 1)
-            elif step == 4 and x == 3 and y == 0:
+            elif step == 5 and x == 3 and y == 0:
                 Art.gas_pocket(self, rect, 0, _clock)
-            elif step == 4 and x == 0 and y == 0:
+            elif step == 5 and x == 0 and y == 0:
                 Art.spring(self, rect, false, 0.0)
             else:
                 Art.block(
@@ -199,7 +234,12 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
         var hop := clampf((t - 0.35) * 2.5, 0.0, 1.0)
         dwarf_x = origin.x + (2.62 + hop) * CELL
         feet_y = origin.y - hop * CELL - sin(hop * PI) * CELL * 0.45
-    var swing := 1.0 - fmod(t * 3.0, 1.0) if step == 1 or step == 3 else 0.0
+    elif step == 3 and t < 0.9:
+        # NOTE (mristin):
+        # A block beside the dwarf: every wave of the arm cracks it more.
+        var side := Rect2(origin + Vector2(3 * CELL, -CELL), Vector2(CELL, CELL))
+        Art.block(self, side, 0, Vector2i(3, 1), clampf(floor(t * 3.0) / 3.0, 0.0, 0.67), true)
+    var swing := 1.0 - fmod(t * 3.0, 1.0) if step in [1, 3, 4] else 0.0
     (
         Art
         . dwarf(
@@ -211,11 +251,12 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
                 "facing": -1 if step == 0 and cos(t * TAU) < 0.0 else 1,
                 "time": _clock,
                 "swing": swing,
+                "sideways": step == 3,
                 "walking": step == 0,
             }
         )
     )
-    if step == 5:
+    if step == 6:
         _draw_dragon(inner, origin, t)
 
 
@@ -242,7 +283,7 @@ func _draw_dragon(inner: Rect2, origin: Vector2, t: float) -> void:
 ## scenes/effects/warning.gdshader).
 func _paint_warning(canvas: CanvasItem) -> void:
     var at := _step()
-    if at[0] != 5 or float(at[1]) > 0.45:
+    if at[0] != 6 or float(at[1]) > 0.45:
         return
     var inner := DWARF.grow(-14.0)
     var origin := inner.position + Vector2((inner.size.x - 5 * CELL) / 2.0, inner.size.y - 2 * CELL)

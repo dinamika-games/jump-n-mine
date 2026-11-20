@@ -7,7 +7,7 @@ Thank you for helping with Jump 'n' Mine!
 The game is made with [Godot] 4.6 (.NET), written in GDScript and C#:
 
 * The vision runs in C# (`scenes/vision/`).
-  YOLOX finds the heads on every camera frame through ONNX Runtime, the `MultiHeadTracker` follows them, a `JumpGauge` for each head counts the jumps, and the `FaceEmbedder` (YuNet and SFace) recognizes the faces of the players who come back.
+  YOLOX finds the heads on every camera frame through ONNX Runtime, the `MultiHeadTracker` follows them, a `JumpGauge` for each head counts the jumps, `RtmPoseModel` finds the poses of the players (in turns, one per frame), and the `FaceEmbedder` (YuNet and SFace) recognizes the faces of the players who come back.
   The core (`scenes/vision/core/`, and `scenes/vision/yolox/`) does not depend on Godot, so we unit-test it with plain .NET in `tests/JumpNMine.Tests/`.
   The node `HeadVision` runs it all in the game; the autoload `Vision` finds the camera and keeps the heads.
 * The game is in GDScript (`scenes/`).

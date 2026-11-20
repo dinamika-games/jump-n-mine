@@ -18,6 +18,11 @@ const SETTLE := 0.3
 ## The heads are followed from this to this fraction of the camera picture.
 const HEAD_RANGE := Vector2(0.15, 0.85)
 
+## The shade over the title painting behind the menus, and the tint of the dim
+## camera picture over it.
+const _BACKDROP_SHADE := Color(0.06, 0.03, 0.1, 0.45)
+const _BACKDROP_PICTURE_TINT := Color(1, 1, 1, 0.22)
+
 var title := ""
 var subtitle := ""
 var hint := "Step left or right to choose, and jump to press!"
@@ -222,7 +227,7 @@ static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
     # NOTE (mristin):
     # The title painting, darkened, so that the cards stand out.
     canvas.draw_texture_rect(Art.picture("title.png"), Rect2(Vector2.ZERO, area), false)
-    canvas.draw_rect(Rect2(Vector2.ZERO, area), Color(0.06, 0.03, 0.1, 0.45))
+    canvas.draw_rect(Rect2(Vector2.ZERO, area), _BACKDROP_SHADE)
     var vision := canvas.get_node_or_null("/root/Vision")
     if vision == null:
         return
@@ -240,9 +245,18 @@ static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
         texture,
         Rect2(area.x - picture.end.x, 0, picture.size.x, picture.size.y),
         false,
-        Color(1, 1, 1, 0.22)
+        _BACKDROP_PICTURE_TINT
     )
     canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+    # NOTE (mristin):
+    # The faces are painted again over the helmets, with all that lies under
+    # them: the title painting, the shade and the camera picture.
+    var layers := [
+        {"texture": Art.picture("title.png"), "rect": Rect2(Vector2.ZERO, area)},
+        {"color": _BACKDROP_SHADE},
+        {"texture": texture, "rect": picture, "flip": true, "color": _BACKDROP_PICTURE_TINT},
+    ]
+    var face := func(outline: PackedVector2Array) -> void: Art.camera_face(canvas, outline, layers)
     var order: Array[int] = vision.ids_from_left()
     var time := Time.get_ticks_msec() / 1000.0
     for rank in range(order.size()):
@@ -261,7 +275,7 @@ static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
                 bool(head.get("jumping", false)),
                 10.0
             )
-        Art.miner_hat(canvas, top, size, rank, time + rank)
+        Art.miner_hat(canvas, top, size, rank, time + rank, head.get("roll", 0.0), face)
 
 
 func _draw_card(i: int, focused: bool) -> void:

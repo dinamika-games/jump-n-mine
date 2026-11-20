@@ -8,87 +8,40 @@ using System.Numerics;
 
 namespace JumpNMine.Vision
 {
-    /// <summary>Filter a signal with an exponential moving average.</summary>
-    public sealed class LowPassFilter
-    {
-        private float? _value;
-
-        public float Filter(float value, float alpha)
-        {
-            _value = _value.HasValue
-                ? _value.Value + alpha * (value - _value.Value)
-                : value;
-
-            return _value.Value;
-        }
-    }
-
-    /// <summary>
-    /// Smooth a noisy signal while keeping the lag low on fast movements.
-    /// </summary>
-    /// <remarks>
-    /// See: Casiez et al., "1€ Filter: A Simple Speed-based Low-pass Filter for
-    /// Noisy Input in Interactive Systems", CHI 2012.
-    /// </remarks>
-    public sealed class OneEuroFilter
-    {
-        private readonly float _minCutoff;
-        private readonly float _beta;
-        private readonly float _derivativeCutoff;
-
-        private readonly LowPassFilter _value = new LowPassFilter();
-        private readonly LowPassFilter _derivative = new LowPassFilter();
-        private float? _previousRaw;
-        private float _previousFiltered;
-
-        public OneEuroFilter(float minCutoff, float beta, float derivativeCutoff)
-        {
-            _minCutoff = minCutoff;
-            _beta = beta;
-            _derivativeCutoff = derivativeCutoff;
-        }
-
-        public float Filter(float value, float dt)
-        {
-            if (!_previousRaw.HasValue)
-            {
-                _previousRaw = value;
-                _previousFiltered = _value.Filter(value, 1f);
-                return _previousFiltered;
-            }
-
-            if (dt <= 0f)
-            {
-                return _previousFiltered;
-            }
-
-            float rawDerivative = (value - _previousRaw.Value) / dt;
-            float derivative = _derivative.Filter(
-                rawDerivative,
-                Alpha(dt, _derivativeCutoff)
-            );
-
-            float cutoff = _minCutoff + _beta * Math.Abs(derivative);
-
-            _previousRaw = value;
-            _previousFiltered = _value.Filter(value, Alpha(dt, cutoff));
-            return _previousFiltered;
-        }
-
-        private static float Alpha(float dt, float cutoff)
-        {
-            float tau = 1f / (2f * MathF.PI * cutoff);
-            return 1f / (1f + tau / dt);
-        }
-    }
-
     /// <summary>Compute the appearance embedding of a head, if possible.</summary>
     /// <returns>L2-normalized embedding, or null if not available.</returns>
     public delegate float[]? EmbedHead(Detection head);
 
     /// <summary>Represent a head followed over multiple frames.</summary>
+    /// <remarks>
+    /// Everything which we follow is smoothed with a 1€ filter: the position and
+    /// the size of the head for the picture, its tilt for the helmet, and its
+    /// height and size for the jumps, with a faster filter, so that the jumps
+    /// keep their tops.
+    /// </remarks>
     public sealed class Track
     {
+        /// <summary>
+        /// The parameters of the faster 1€ filters for the jumps: they only
+        /// remove the jitter of the detector while the head stands still.
+        /// </summary>
+        public const float JumpMinCutoff = 4f;
+        public const float JumpBeta = 0.05f;
+
+        /// <summary>The parameters of the 1€ filter of the tilt (in radians).</summary>
+        public const float RollMinCutoff = 1f;
+        public const float RollBeta = 0.5f;
+
+        /// <summary>Forget the tilt after the face was not found for this long (s).</summary>
+        public const double RollMemory = 0.5;
+
+        /// <summary>
+        /// The parameters of the 1€ filters of the keypoints of the pose (in the
+        /// normalized picture, so the beta is per picture width per second).
+        /// </summary>
+        public const float PoseMinCutoff = 1.5f;
+        public const float PoseBeta = 5f;
+
         public int Id;
 
         /// <summary>Smoothed center of the head in (mirrored) camera pixels.</summary>
@@ -102,13 +55,44 @@ namespace JumpNMine.Vision
 
         /// <summary>
         /// The center of the head as last detected, not smoothed, in (mirrored)
-        /// camera pixels; the jumps follow it, since the smoothing would delay
-        /// them and cut their tops.
+        /// camera pixels.
         /// </summary>
         public Vector2 RawPosition => _lastRawPosition;
 
         /// <summary>The size of the head as last detected, not smoothed, in camera pixels.</summary>
         public float RawSize { get; private set; }
+
+        /// <summary>
+        /// The height of the center of the head for the jumps, in camera pixels,
+        /// smoothed with a fast 1€ filter (<see cref="JumpMinCutoff"/>).
+        /// </summary>
+        public float JumpY { get; private set; }
+
+        /// <summary>The size of the head for the jumps, smoothed like <see cref="JumpY"/>.</summary>
+        public float JumpSize { get; private set; }
+
+        /// <summary>
+        /// The head box as last detected, normalized to the mirrored picture; the
+        /// faces are looked for in it.
+        /// </summary>
+        public Detection? RawHead;
+
+        /// <summary>
+        /// The smoothed tilt of the head in the mirrored picture (radians,
+        /// clockwise on the screen), from the line between the eyes; 0 while we
+        /// do not know it.
+        /// </summary>
+        public float Roll { get; private set; }
+
+        /// <summary>
+        /// The keypoints of the pose, smoothed with 1€ filters, normalized to the
+        /// mirrored picture (see <see cref="Pose"/>); null before the first pose.
+        /// The scores are the last ones, not smoothed.
+        /// </summary>
+        public Pose? Pose { get; private set; }
+
+        /// <summary>When the pose was estimated last, -inf before.</summary>
+        public double PoseTimestamp { get; private set; } = double.NegativeInfinity;
 
         public double LastSeen;
         public int Hits = 1;
@@ -119,10 +103,16 @@ namespace JumpNMine.Vision
         public double EmbeddingTimestamp = double.NegativeInfinity;
 
         private Vector2 _lastRawPosition;
-        private readonly float _minCutoff;
-        private readonly float _beta;
-        private OneEuroFilter _filterX;
-        private OneEuroFilter _filterY;
+        private readonly OneEuroFilter _filterX;
+        private readonly OneEuroFilter _filterY;
+        private readonly OneEuroFilter _filterSize;
+        private readonly OneEuroFilter _filterJumpY;
+        private readonly OneEuroFilter _filterJumpSize;
+        private OneEuroFilter _filterRoll = NewRollFilter(0f);
+        private double _rollSeen = double.NaN;
+        private double _rollObserved = double.NaN;
+        private readonly OneEuroFilter[] _filterPoseX = NewPoseFilters();
+        private readonly OneEuroFilter[] _filterPoseY = NewPoseFilters();
 
         public Track(
             int id,
@@ -134,18 +124,62 @@ namespace JumpNMine.Vision
         )
         {
             Id = id;
-            Size = size;
             RawSize = size;
             LastSeen = timestamp;
-            _minCutoff = minCutoff;
-            _beta = beta;
-            _filterX = new OneEuroFilter(minCutoff, beta, 1f);
-            _filterY = new OneEuroFilter(minCutoff, beta, 1f);
+            _filterX = new OneEuroFilter(minCutoff, beta);
+            _filterY = new OneEuroFilter(minCutoff, beta);
+            _filterSize = new OneEuroFilter(minCutoff, beta);
+            _filterJumpY = new OneEuroFilter(JumpMinCutoff, JumpBeta);
+            _filterJumpSize = new OneEuroFilter(JumpMinCutoff, JumpBeta);
             _lastRawPosition = position;
             Position = new Vector2(
                 _filterX.Filter(position.X, 0f),
                 _filterY.Filter(position.Y, 0f)
             );
+            Size = _filterSize.Filter(size, 0f);
+            JumpY = _filterJumpY.Filter(position.Y, 0f);
+            JumpSize = _filterJumpSize.Filter(size, 0f);
+        }
+
+        private static OneEuroFilter[] NewPoseFilters()
+        {
+            var filters = new OneEuroFilter[Vision.Pose.Count];
+            for (int k = 0; k < filters.Length; k++)
+            {
+                filters[k] = new OneEuroFilter(PoseMinCutoff, PoseBeta);
+            }
+            return filters;
+        }
+
+        /// <summary>
+        /// Observe the pose of the player (estimated on the frame of the given
+        /// time): smooth its keypoints, and follow the tilt of her head from it.
+        /// </summary>
+        public void ObservePose(Pose pose, double timestamp, float frameWidth, float frameHeight)
+        {
+            float dt = double.IsNegativeInfinity(PoseTimestamp) ? 0f : (float)(timestamp - PoseTimestamp);
+            PoseTimestamp = timestamp;
+
+            var smoothed = new Pose();
+            for (int k = 0; k < Vision.Pose.Count; k++)
+            {
+                smoothed.X[k] = _filterPoseX[k].Filter(pose.X[k], dt);
+                smoothed.Y[k] = _filterPoseY[k].Filter(pose.Y[k], dt);
+                smoothed.Score[k] = pose.Score[k];
+            }
+            Pose = smoothed;
+
+            // NOTE (mristin):
+            // The tilt has its own filter, so we take it from the raw pose.
+            ObserveRoll(pose.Roll(frameWidth, frameHeight), timestamp);
+        }
+
+        /// <summary>A filter of the tilt which starts at the given tilt.</summary>
+        private static OneEuroFilter NewRollFilter(float roll)
+        {
+            var filter = new OneEuroFilter(RollMinCutoff, RollBeta);
+            filter.Filter(roll, 0f);
+            return filter;
         }
 
         /// <summary>Predict where the head is at the given time.</summary>
@@ -159,12 +193,6 @@ namespace JumpNMine.Vision
         {
             float dt = (float)(timestamp - LastSeen);
 
-            if (dt > 0f)
-            {
-                var rawVelocity = (position - _lastRawPosition) / dt;
-                Velocity = Vector2.Lerp(Velocity, rawVelocity, 0.5f);
-            }
-
             _lastRawPosition = position;
             RawSize = size;
             LastSeen = timestamp;
@@ -173,9 +201,39 @@ namespace JumpNMine.Vision
                 _filterX.Filter(position.X, dt),
                 _filterY.Filter(position.Y, dt)
             );
-            Size += (size - Size) * 0.3f;
+            Velocity = new Vector2(_filterX.Derivative, _filterY.Derivative);
+            Size = _filterSize.Filter(size, dt);
+            JumpY = _filterJumpY.Filter(position.Y, dt);
+            JumpSize = _filterJumpSize.Filter(size, dt);
 
             Hits++;
+        }
+
+        /// <summary>
+        /// Observe the tilt of the head (radians, clockwise in the mirrored
+        /// picture), or NaN if no face was found in the head.
+        /// </summary>
+        public void ObserveRoll(float roll, double timestamp)
+        {
+            float dt = double.IsNaN(_rollObserved) ? 0f : (float)(timestamp - _rollObserved);
+            _rollObserved = timestamp;
+
+            if (float.IsNaN(roll))
+            {
+                if (double.IsNaN(_rollSeen) || timestamp - _rollSeen > RollMemory)
+                {
+                    // NOTE (mristin):
+                    // The player turned away: the helmet goes back upright
+                    // smoothly, and the filter starts afresh from there when the
+                    // face is back, so that the helmet does not jump.
+                    Roll *= 0.85f;
+                    _filterRoll = NewRollFilter(Roll);
+                }
+                return;
+            }
+
+            Roll = _filterRoll.Filter(roll, dt);
+            _rollSeen = timestamp;
         }
 
         /// <summary>Blend a new embedding into the appearance of the player.</summary>
@@ -393,6 +451,7 @@ namespace JumpNMine.Vision
                 var track = _tracks[t];
                 int d = matchedDetection[t];
                 track.Observe(centers[d], sizes[d], timestamp);
+                track.RawHead = heads[d];
                 observed.Add((track, d));
 
                 // NOTE (mristin):

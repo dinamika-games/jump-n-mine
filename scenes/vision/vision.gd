@@ -10,6 +10,9 @@ signal head_appeared(id: int, position: Vector2)
 signal head_moved(id: int, position: Vector2)
 signal head_lost(id: int)
 signal head_jumped(id: int, strength: float)
+## The player of the head swung an arm out to the side: -1 to the left of the
+## mirrored picture, 1 to the right.
+signal head_swung(id: int, side: int)
 
 ## A full jump rises this many head sizes above standing, and a low one (a
 ## weaker hit) at least [constant LOW_JUMP_HEIGHT] (see JumpGauge); for the
@@ -30,8 +33,9 @@ const _ANY_FORMAT := -2
 ## picture, [0, 1]), "size" (in the heights of the picture), "rise" (how far
 ## above standing, in head sizes), "jump_line" (the height which the head must
 ## rise above for a jump, normalized to the picture; NAN before it is known),
-## "jumping" (whether the player is in a jump now) and "jumped" (the time of the
-## last jump, in seconds, or -1).
+## "jumping" (whether the player is in a jump now), "roll" (the tilt of the head,
+## in radians, clockwise in the mirrored picture) and "jumped" (the time of the
+## last jump, in seconds, or -1). HeadVision smooths them all with 1€ filters.
 var heads := {}
 
 ## Why there is no camera, for the players; empty while it runs or is searched.
@@ -48,6 +52,7 @@ func _ready() -> void:
     service.HeadMoved.connect(_on_moved)
     service.HeadLost.connect(_on_lost)
     service.HeadJumped.connect(_on_jumped)
+    service.HeadSwung.connect(func(id: int, side: int) -> void: head_swung.emit(id, side))
 
     if "--no-camera" in OS.get_cmdline_user_args():
         camera_problem = "The camera is switched off. Play with the keyboard."
@@ -94,7 +99,13 @@ func _on_appeared(id: int, position: Vector2, size: float) -> void:
 
 
 func _on_moved(
-    id: int, position: Vector2, size: float, rise: float, jump_line: float, jumping: bool
+    id: int,
+    position: Vector2,
+    size: float,
+    rise: float,
+    jump_line: float,
+    jumping: bool,
+    roll: float
 ) -> void:
     if not heads.has(id):
         heads[id] = _new_head(position, size)
@@ -105,6 +116,7 @@ func _on_moved(
     head["rise"] = rise
     head["jump_line"] = jump_line
     head["jumping"] = jumping
+    head["roll"] = roll
     head_moved.emit(id, position)
 
 
@@ -115,6 +127,7 @@ static func _new_head(position: Vector2, size: float) -> Dictionary:
         "rise": 0.0,
         "jump_line": NAN,
         "jumping": false,
+        "roll": 0.0,
         "jumped": -1.0,
     }
 

@@ -15,12 +15,14 @@
     -->
     <Compile Include="../../scenes/vision/core/*.cs" LinkBase="Linked/core" />
     <Compile Include="../../scenes/vision/yolox/YoloxModel.cs" Link="Linked/YoloxModel.cs" />
+    <Compile Include="../../scenes/vision/rtmpose/RtmPoseModel.cs" Link="Linked/RtmPoseModel.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="../../scenes/vision/yolox/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../scenes/vision/yunet/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../scenes/vision/sface/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../scenes/vision/rtmpose/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
     <None Include="data/**/*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

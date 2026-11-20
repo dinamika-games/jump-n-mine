@@ -33,6 +33,9 @@ const VIEW_ROWS := 12.4
 ## How many hits each kind of block takes.
 const HITS := {Cell.DIRT: 3, Cell.ROCK: 4, Cell.GAS: 1, Cell.SPRING: 3}
 
+## A pickaxe swung to the side reaches this far beyond the dwarf, in cells.
+const SIDE_REACH := 0.35
+
 ## The kinds of the boosters (see DESIGN.md, "Boosters").
 const BOOSTERS := ["gold_pick", "helmet", "pump", "boots"]
 
@@ -312,6 +315,29 @@ func jump(player: int, strength := 1.0) -> void:
         dwarf.on_ground = false
 
 
+## The player swung an arm out to the side (-1 left, 1 right): the dwarf swings
+## its pickaxe at the block beside it, without a hop. A low swing (strength
+## below 1) hits the block less.
+func swing_side(player: int, side: int, strength := 1.0) -> void:
+    var dwarf := dwarf_of(player)
+    if state != State.PLAYING or dwarf == null or side == 0:
+        return
+    if dwarf.stun > 0.0:
+        return
+    if dwarf.swimming:
+        events.append({"type": "blub", "pos": dwarf.pos, "dwarf": dwarf.index})
+
+    dwarf.swing = 0.35
+    dwarf.facing = signi(side)
+    dwarf.swing_dir = Vector2i(signi(side), 0)
+    var target := _side_target(dwarf, signi(side))
+    if target.x >= 0:
+        dwarf.hits += 1
+        _hit(target, strength * (2.0 if dwarf.has("gold_pick") else 1.0), dwarf)
+    else:
+        events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
+
+
 ## Take what happened since the last call, and forget it.
 func take_events() -> Array[Dictionary]:
     var result := events
@@ -529,9 +555,10 @@ func _is_earth(x: int, y: int) -> bool:
 ## The block which the pickaxe of the dwarf hits: the one below its feet, or
 ## (-1, -1) if none.
 ##
-## The dwarves only hit down. The only exception is an open spring in the wall
-## right beside the dwarf: the dwarf hammers it shut, so that the players can
-## stop the water with nothing but their jumps.
+## A jump only hits down (an arm swung out hits sideways, see [method
+## swing_side]). The only exception is an open spring in the wall right beside
+## the dwarf: the dwarf hammers it shut, so that the players can stop the water
+## with nothing but their jumps.
 func _hit_target(dwarf: Dwarf) -> Vector2i:
     var cx := int(floor(dwarf.pos.x))
     var body := int(floor(dwarf.pos.y - DWARF_HEIGHT * 0.5))
@@ -555,6 +582,19 @@ func _hit_target(dwarf: Dwarf) -> Vector2i:
     ]:
         if is_breakable(x, below):
             return Vector2i(x, below)
+    return Vector2i(-1, -1)
+
+
+## The block beside the dwarf (on the side, -1 or 1) which its pickaxe reaches,
+## from its feet up to its head, or (-1, -1) if none.
+func _side_target(dwarf: Dwarf, side: int) -> Vector2i:
+    var x := int(floor(dwarf.pos.x + side * (DWARF_HALF_WIDTH + SIDE_REACH)))
+    if x == int(floor(dwarf.pos.x)):
+        return Vector2i(-1, -1)
+    var rows := _rows_of(dwarf.pos.y)
+    for y in range(rows.y, rows.x - 1, -1):
+        if is_breakable(x, y):
+            return Vector2i(x, y)
     return Vector2i(-1, -1)
 
 

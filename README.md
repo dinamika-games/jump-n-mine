@@ -3,7 +3,7 @@
 **Jump 'n' Mine is a free digging game for children, played by jumping in front of a webcam, alone or with up to three friends who come and go as they like.**
 
 You are a dwarf in a mine.
-Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet.
+Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; wave an arm to the side, and it swings at the block beside it.
 Three or four hits break a block, which cracks more with every hit.
 Dig down through the earth and the rock, gather the gems, grab the boosters, step away from the exploding gas, hammer the springs shut before the water floods the mine, dodge the dragons' fire, open the iron gates with the stone plates (together, when your friends are there), and find the treasure at the bottom.
 Nobody dies: when the mine floods, the dwarves climb out and try again.
@@ -49,6 +49,7 @@ We follow the players with the following models (each model directory contains i
 * [YOLOX-Body-Head-Hand-Face] (nano, 256x320, Apache-2.0) finds the heads, on every camera frame.
 * [YuNet] (MIT) finds the landmarks of the faces in the heads.
 * [SFace] (int8, Apache-2.0) recognizes the faces, so that the players get their dwarves back when they return.
+* [RTMPose] (tiny, 256x192, Apache-2.0) finds the poses of the players, so that the helmets tilt with their heads.
 
 The pictures were painted with an image generator from our prompts (`dev/pictures/prompts/`).
 
@@ -59,6 +60,7 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for all the components and 
 [YOLOX-Body-Head-Hand-Face]: https://github.com/PINTO0309/PINTO_model_zoo/tree/main/434_YOLOX-Body-Head-Hand-Face
 [YuNet]: https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
 [SFace]: https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface
+[RTMPose]: https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose
 [Freesound]: https://freesound.org
 
 ## Contributing

@@ -1,9 +1,9 @@
 extends SceneTree
 ## Check the rules of the mine: three hits break the earth and four the rock,
-## the pickaxe only hits down, a dwarf hops onto a step of one block, the
-## gas pockets blow up their neighbors, the springs flood the mine unless
-## they are hammered shut, the fire makes a dwarf dizzy unless it wears the helmet, and the
-## treasure ends the level.
+## a jump only hits down and an arm swung out hits the block beside, a dwarf
+## hops onto a step of one block, the gas pockets blow up their neighbors, the
+## springs flood the mine unless they are hammered shut, the fire makes a dwarf
+## dizzy unless it wears the helmet, and the treasure ends the level.
 
 const DT := 1.0 / 60.0
 
@@ -115,6 +115,39 @@ func _check_side() -> void:
     _check(mine.hits_left[mine.index(6, y - 1)] == 3, "leaning against a block does not hit it")
     _check(mine.hits_left[mine.index(5, y)] == 2, "the pickaxe hits the block below")
     _check(dwarf.pos.x > 6.0 and dwarf.pos.y <= y - 0.99, "the jump hops the dwarf onto the step")
+
+
+func _check_side_swing() -> void:
+    var mine := Mine.new(_plain(), 1)
+    var y := Mine.SKY_ROWS + 3
+    var dwarf := _stand(mine, 5, y)
+    for yy in range(Mine.SKY_ROWS, y):
+        mine.cells[mine.index(6, yy)] = Mine.Cell.AIR
+        mine.cells[mine.index(4, yy)] = Mine.Cell.AIR
+    mine.cells[mine.index(6, y - 1)] = Mine.Cell.ROCK
+    mine.hits_left[mine.index(6, y - 1)] = 4
+    mine.set_target(0, 8.0)
+    _wait(mine, 0.5)
+    for k in range(3):
+        mine.swing_side(0, 1)
+        _wait(mine, 0.5)
+    _check(mine.cell(6, y - 1) == Mine.Cell.ROCK, "three swings to the side do not break the rock")
+    _check(mine.damage(6, y - 1) > 0.5, "swings to the side crack the block beside the dwarf")
+    _check(
+        mine.hits_left[mine.index(5, y)] == 3, "a swing to the side does not hit the block below"
+    )
+    _check(dwarf.pos.y > y - 0.01, "a swing to the side does not hop")
+    mine.swing_side(0, 1)
+    _wait(mine, 1.0)
+    _check(mine.cell(6, y - 1) == Mine.Cell.AIR, "four swings to the side break the rock")
+    _check(dwarf.pos.x > 6.0, "the dwarf walks through the opening")
+
+    var cracked := mine.hits_left.duplicate()
+    mine.set_target(0, 6.5)
+    _wait(mine, 1.0)
+    mine.swing_side(0, -1)
+    _wait(mine, 0.5)
+    _check(mine.hits_left == cracked, "a swing into the open air hits nothing")
 
 
 func _check_explosion() -> void:
@@ -295,6 +328,7 @@ func _run() -> void:
     _check_hits()
     _check_weak_hits()
     _check_side()
+    _check_side_swing()
     _check_explosion()
     _check_springs()
     _check_fire()

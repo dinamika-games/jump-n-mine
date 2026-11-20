@@ -70,6 +70,13 @@ We distribute the model unmodified.
 * Source: https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface (by Yaoyao Zhong, converted by Chengrui Wang), unmodified
 * License text: [scenes/vision/sface/model/LICENSE](scenes/vision/sface/model/LICENSE)
 
+### RTMPose-t (body pose)
+
+* File: `scenes/vision/rtmpose/model/rtmpose_t_body7_256x192.onnx`
+* License: Apache License 2.0
+* Source: https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose (MMPose by OpenMMLab), the ONNX export `rtmpose-t_simcc-body7_pt-body7_420e-256x192-026a1439_20230504` from https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/, renamed, otherwise unmodified
+* License text: [scenes/vision/rtmpose/model/LICENSE](scenes/vision/rtmpose/model/LICENSE)
+
 ### The sounds
 
 * Files: `assets/sounds/*.ogg`, cut by `dev/sounds/cut_sounds.py` out of the recordings listed in `dev/sounds/sources.json`

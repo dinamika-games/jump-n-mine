@@ -74,6 +74,7 @@ func _ready() -> void:
     mine.take_events()
 
     get_node("/root/Vision").head_jumped.connect(_on_head_jumped)
+    get_node("/root/Vision").head_swung.connect(_on_head_swung)
     hud.tip(_first_tip(), 7.0)
 
 
@@ -219,6 +220,12 @@ func _on_head_jumped(id: int, strength: float) -> void:
     var slot := head_of_slot.find(id)
     if slot >= 0:
         mine.jump(slot, strength)
+
+
+func _on_head_swung(id: int, side: int) -> void:
+    var slot := head_of_slot.find(id)
+    if slot >= 0:
+        mine.swing_side(slot, side)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

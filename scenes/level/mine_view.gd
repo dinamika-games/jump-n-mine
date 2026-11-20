@@ -370,6 +370,7 @@ func _draw_dwarf(dwarf: Mine.Dwarf) -> void:
             {
                 "facing": dwarf.facing,
                 "swing": dwarf.swing / 0.35,
+                "sideways": dwarf.swing_dir.y == 0,
                 "stun": dwarf.stun > 0.0,
                 "time": _time + dwarf.index,
                 "walking": walking,

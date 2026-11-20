@@ -5,6 +5,9 @@ extends Control
 ## the dwarves came and how full of water the mine is), the tips, and the
 ## camera picture in the corner with a dot on every head.
 
+## The camera picture in the corner lets the outline under it shine through a little.
+const _PICTURE_TINT := Color(1, 1, 1, 0.9)
+
 var mine: Mine
 var level: Dictionary
 ## The dwarf of each head in the camera, by the id of the head.
@@ -105,8 +108,16 @@ func _draw_camera() -> void:
         return
     draw_rect(rect.grow(4), Art.OUTLINE)
     draw_set_transform(Vector2(rect.position.x * 2 + rect.size.x, 0), 0.0, Vector2(-1, 1))
-    draw_texture_rect(texture, rect, false, Color(1, 1, 1, 0.9))
+    draw_texture_rect(texture, rect, false, _PICTURE_TINT)
     draw_set_transform(Vector2.ZERO)
+    # NOTE (mristin):
+    # The faces are painted again over the helmets, as the picture shows them:
+    # over the outline, which lies under the picture.
+    var layers := [
+        {"color": Art.OUTLINE},
+        {"texture": texture, "rect": rect, "flip": true, "color": _PICTURE_TINT},
+    ]
+    var face := func(outline: PackedVector2Array) -> void: Art.camera_face(self, outline, layers)
     # NOTE (mristin):
     # A miner's helmet on every player, with the brim in the color of her dwarf.
     for id in vision.heads:
@@ -127,7 +138,7 @@ func _draw_camera() -> void:
                 bool(head.get("jumping", false)),
                 maxf(4.0, rect.size.y * 0.018)
             )
-        Art.miner_hat(self, top, size, slot, _time + id)
+        Art.miner_hat(self, top, size, slot, _time + id, head.get("roll", 0.0), face)
         _draw_jump_meter(head, top + Vector2(size * 0.75, size * 0.2), size, brim)
 
 

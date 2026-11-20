@@ -25,6 +25,21 @@ const _DWARF_COLORS := ["red", "blue", "green", "yellow"]
 const _DWARF_TALL := 244.0 / 362.0
 const _DWARF_FEET := Vector2(0.54, 328.0 / 362.0)
 
+## The helmet is this wide (in head sizes), and the bottom of its brim lies
+## this far below the center of the head box (in head sizes).
+const _HAT_WIDTH := 1.3
+const _HAT_BRIM := 0.02
+
+## The face which covers the brim, as an ellipse in head sizes: its center
+## below the center of the head box, and its half width and half height. Its
+## top is the hairline.
+const _FACE_CENTER := 0.22
+const _FACE_RADII := Vector2(0.3, 0.32)
+
+## The brim casts a shadow this far down the forehead (in head sizes), this dark.
+const _SHADOW_DEPTH := 0.12
+const _SHADOW_ALPHA := 0.45
+
 ## The loaded pictures, by their path. We must keep them: a picture which is
 ## freed right after a draw call is drawn white, since the frame is rendered
 ## later.
@@ -119,22 +134,92 @@ static func gas_pocket(canvas: CanvasItem, rect: Rect2, world: int, time: float)
 
 
 ## A miner's helmet with its glowing lamp, for a head in the camera picture:
-## the middle of the top of the head box of YOLOX, and its size (in pixels);
-## the brim has the color of the dwarf of the slot (white for -1).
+## the middle of the top of the head box of YOLOX, its size (in pixels) and the
+## tilt of the head (radians, clockwise); the brim has the color of the dwarf of
+## the slot (white for -1).
+##
+## The helmet sits over the hair, and the forehead covers the middle of the
+## brim, so that the head wears it: [param face] paints the face again over the
+## helmet, given the outline of the face (see [method camera_face]); without
+## it, the helmet lies over the head.
 static func miner_hat(
-    canvas: CanvasItem, top: Vector2, size: float, slot: int, time: float
+    canvas: CanvasItem,
+    top: Vector2,
+    size: float,
+    slot: int,
+    time: float,
+    roll: float = 0.0,
+    face: Callable = Callable()
 ) -> void:
     var color: String = "white" if slot < 0 or slot > 3 else _DWARF_COLORS[slot]
     var texture := picture("helmets/%s.png" % color)
-    var width := size * 1.3
+    var width := size * _HAT_WIDTH
     # NOTE (mristin):
-    # The head boxes of YOLOX reach about a quarter of their height above the
-    # hair; the bottom of the brim (at 75 % of the picture) lies on the
-    # forehead.
-    var brim := top + Vector2(0, size * 0.5)
-    var rect := Rect2(brim - Vector2(width * 0.5, width * 0.75), Vector2(width, width))
+    # We place the helmet relative to the center of the head box, and turn it
+    # with the head around there. The bottom of the brim lies at 76 % of the
+    # picture.
+    var center := top + Vector2(0, size * 0.5)
+    var brim := Vector2(0, size * _HAT_BRIM)
+    var rect := Rect2(brim - Vector2(width * 0.5, width * 0.76), Vector2(width, width))
     var flicker := 0.92 + 0.08 * sin(time * 7.0)
+    canvas.draw_set_transform(center, roll, Vector2.ONE)
     canvas.draw_texture_rect(texture, rect, false, Color(flicker, flicker, flicker, 1.0))
+    canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+    if face.is_valid():
+        face.call(_face_outline(center, size, roll))
+        _brim_shadow(canvas, center, size, roll)
+
+
+## Paint the camera picture again inside the outline of a face, over its
+## helmet, as the picture shows it: the layers are drawn from the bottom up,
+## each a Dictionary with a "color" (the modulation) and optionally a
+## "texture" drawn into a "rect" (in pixels), mirrored if "flip".
+static func camera_face(canvas: CanvasItem, outline: PackedVector2Array, layers: Array) -> void:
+    for layer: Dictionary in layers:
+        var color: Color = layer.get("color", Color.WHITE)
+        var texture: Texture2D = layer.get("texture", null)
+        if texture == null:
+            canvas.draw_colored_polygon(outline, color)
+            continue
+        var rect: Rect2 = layer["rect"]
+        var flip: bool = layer.get("flip", false)
+        var uvs := PackedVector2Array()
+        for point in outline:
+            var uv := (point - rect.position) / rect.size
+            if flip:
+                uv.x = 1.0 - uv.x
+            uvs.append(uv)
+        canvas.draw_colored_polygon(outline, color, uvs, texture)
+
+
+## The shadow of the brim on the forehead, under a helmet: dark at the brim,
+## fading out down the forehead.
+static func _brim_shadow(canvas: CanvasItem, center: Vector2, size: float, roll: float) -> void:
+    var top := _FACE_CENTER - _FACE_RADII.y
+    var bottom := _HAT_BRIM + _SHADOW_DEPTH
+    var points := PackedVector2Array()
+    var colors := PackedColorArray()
+    # NOTE (mristin):
+    # The upper arc of the face, from its left to its right, down to the bottom
+    # of the shadow; the shadow is darkest at the top.
+    for k in range(17):
+        var angle := PI + k * PI / 16.0
+        var local := Vector2(cos(angle) * _FACE_RADII.x, _FACE_CENTER + sin(angle) * _FACE_RADII.y)
+        local.y = minf(local.y, bottom)
+        points.append(center + (local * size).rotated(roll))
+        var shade := clampf((bottom - local.y) / (bottom - top), 0.0, 1.0)
+        colors.append(Color(0, 0, 0, _SHADOW_ALPHA * shade))
+    canvas.draw_polygon(points, colors)
+
+
+## The outline of the face in a head (see [method miner_hat]).
+static func _face_outline(center: Vector2, size: float, roll: float) -> PackedVector2Array:
+    var outline := PackedVector2Array()
+    for k in range(32):
+        var angle := k * TAU / 32.0
+        var local := Vector2(cos(angle) * _FACE_RADII.x, _FACE_CENTER + sin(angle) * _FACE_RADII.y)
+        outline.append(center + (local * size).rotated(roll))
+    return outline
 
 
 ## The line which a player's head must rise above for a jump, in the camera
@@ -226,8 +311,9 @@ static func booster(canvas: CanvasItem, center: Vector2, size: float, kind: Stri
 ## feet, as tall as the height (in pixels).
 ##
 ## The state: "facing" (1 or -1), "swing" (in [0, 1], 1 at the start of a
-## swing), "stun" (dizzy), "time" (for the animation), "walking", "boosters"
-## (the kinds on the dwarf) and "under_water".
+## swing), "sideways" (the swing strikes the block beside the dwarf, not the
+## one below), "stun" (dizzy), "time" (for the animation), "walking",
+## "boosters" (the kinds on the dwarf) and "under_water".
 static func dwarf(
     canvas: CanvasItem, feet: Vector2, height: float, slot: int, state: Dictionary
 ) -> void:
@@ -237,6 +323,13 @@ static func dwarf(
     var pose := "idle"
     if bool(state.get("stun", false)):
         pose = "dizzy"
+    elif swing > 0.0 and bool(state.get("sideways", false)):
+        if swing > 0.75:
+            pose = "side_back"
+        elif swing > 0.3:
+            pose = "side_hit"
+        else:
+            pose = "side_recoil"
     elif swing > 0.0:
         if swing > 0.7:
             pose = "raised"

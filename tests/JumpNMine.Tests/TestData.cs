@@ -25,6 +25,7 @@ namespace JumpNMine.Tests
         public const string Yolox = "yolox_n_body_head_hand_face_post_1x3x256x320.onnx";
         public const string YuNet = "face_detection_yunet_2023mar_dynamic.onnx";
         public const string SFace = "face_recognition_sface_2021dec_int8.onnx";
+        public const string RtmPose = "rtmpose_t_body7_256x192.onnx";
 
         public static string Path(string fileName)
         {
