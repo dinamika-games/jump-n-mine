@@ -2,28 +2,28 @@
 
 **Jump 'n' Mine is a digging game for children, played by jumping in front of a webcam, alone or with up to three friends who come and go as they like.**
 You are a dwarf in a mine.
-Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; wave an arm to the side, and it swings at the block beside it.
+Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; punch to the side, and it swings at the block beside it.
 Dig down through the earth and the rock, gather the gems, open the iron gates with the stone plates, mind the gas and the dragons' fire, keep the water out, and find the treasure at the bottom of the mine.
 Nobody dies: when the water floods the mine, the dwarves climb out, wet but happy, and start the level again.
 
-Each level takes about fifteen minutes, and most of it is jumping.
+Each level takes three to five minutes, and most of it is jumping.
 
 # Game design
 
 ## 1. Pillars
 
-1. **The exercise is the controller.** The players only step left and right, jump, and wave an arm to the side. Every swing of the pickaxe is a jump or a wave. The game never says "do jumps"; it shows the dwarf swinging, and the blocks crack.
+1. **The exercise is the controller.** The players only step left and right, jump, and punch to the side. Every swing of the pickaxe is a jump or a punch. The game never says "do jumps"; it shows the dwarf swinging, and the blocks crack.
 2. **Friends dig together, whenever they like.** Up to four players, each with a dwarf, in one mine. A player who steps in front of the camera gets a dwarf, and a player who leaves takes her dwarf along; the puzzles adapt on the fly to who is there. There is no race: the gems and the treasure belong to all.
 3. **Nobody gets hurt.** The fire and the explosions only make a dwarf dizzy for a moment. The flood ends the level, but the dwarves simply climb out and try again.
 4. **Clear at a glance.** The cave is dark and cool, the blocks are warm and bright, and what is special looks special: the glowing green gas, the blue springs in the walls, the iron gates and their stone plates, the gems and the boosters.
 
 ## 2. Controls: stepping and jumping
 
-* **Walking:** the dwarf walks to where its player stands: the player's head in the mirrored camera picture, from 12 % to 88 % of its width, maps to the whole width of the mine. A dwarf does not walk through blocks; it stops at them.
-* **Jumping:** a jump counts when the head rises 0.7 head sizes (about 15 cm) above the height where the player stands (`JumpGauge`, measured in head sizes, so that it does not matter how close to the camera the player stands). The next jump counts once the head came back down to 0.35 head sizes above standing, and two jumps are at least 0.3 s apart. The standing height follows the head slowly (4 s), so that a player may step closer or back, and standing up after a crouch of a couple of seconds is no jump. The thresholds are first guesses, to tune with recordings of children.
+* **Walking:** the dwarf walks to where its player stands: the player's head in the mirrored camera picture, from 30 % to 70 % of its width, maps to the whole width of the mine, so that a player reaches the walls of the mine in the middle of the room, where she still sees the screen and a short step moves her dwarf, and still punches inside the picture. The dwarf always stands in the middle of a block, never between two: it steps to the next block only once the head was 0.5 blocks beyond the edge of its block for 0.1 s (`Level.BLOCK_MARGIN`, `Level.STEP_HOLD`), and walks block by block, so that it stays on the block it digs while its player sways and jumps, and a glitch of the tracking does not move it. A dwarf does not walk through blocks; it stops at them.
+* **Jumping:** a jump is measured from the lowest point of the head in the 0.8 s before it (where the player stands, or her knees bent to jump or after the last landing) to its peak, in head sizes (`JumpGauge`), so that it does not matter how close to the camera the player stands, and nothing drifts while she jumps in a row. A jump counts fully from 0.3 head sizes (about 9 cm), and as a weak one (half a hit) from 0.18; it counts when the head comes back down, and two jumps are at least 0.3 s apart. A head which goes up and stays up for a second (standing up from a crouch, on the toes, or stepping closer) is no jump. The thresholds come from recordings of an adult (see `--record`) and are to tune with recordings of children.
 * **The swing:** each jump swings the pickaxe **down** at the block under the dwarf's feet. The only exception is a spring: a dwarf who stands right next to an open spring in the wall hammers it shut with its jumps.
-* **The swing to the side:** a player who swings an arm out to the side (the wrist 1.5 head sizes beyond the shoulder, about at its height, `SwingGauge`) swings the pickaxe **sideways** at the block beside the dwarf, without a hop; every wave of the arm is a hit, so a player who walks into a wall waves it open. Arms raised over the head in a jump, or both arms out at once, do not count. Leaning against a block and jumping still hits only down. The thresholds are first guesses, to tune with recordings of children; without the pose (the keyboard, or no pose model), the dwarves dig staircases as before.
-* **The hop:** each jump also hops the dwarf 1.25 blocks up, so that it climbs onto a step of one block, and jumps over a hole while it walks. To go sideways deeper down, the dwarves dig staircases: dig the block underfoot, hop onto the next one, dig it, and so on.
+* **The swing to the side:** a player who moves a fist quickly to the left or to the right (the wrist travels 0.6 head sizes across the body within 0.4 s and ends at least 1.4 head sizes on that side of the middle of the body, beyond the shoulder, or reaches the edge of the picture, about at the height of the chest, `SwingGauge`) swings the pickaxe **sideways** at the block on that side, without a hop; every punch is a hit, so a player who walks into a wall punches it open. Pulling the fist back to the body, walking, arms raised over the head in a jump, or both fists apart at once do not count. Leaning against a block and jumping still hits only down. The thresholds are first guesses, to tune with recordings of children; without the pose (the keyboard, or no pose model), the dwarves dig staircases as before.
+* **The hop:** a jump while the dwarf walks, or leans against a block beside its feet, hops it 1.25 blocks up, so that it climbs onto a step of one block, and jumps over a hole. A jump while the dwarf stands still only bobs it a little, so that it stays on the block it digs. To go sideways deeper down, the dwarves dig staircases: dig the block underfoot, hop onto the next one, dig it, and so on.
 * **Hits:** the soft earth breaks after 3 hits, the hard rock after 4; each hit shows bigger cracks.
 * **The keyboard** (without a camera, and for testing): the first dwarf walks with Left and Right and jumps with Up (or Space), the second with A, D and W, the third with J, L and I, the fourth with 4, 6 and 8 of the keypad; the first key of a player brings her dwarf. Escape pauses, and M switches the sound off and on.
 
@@ -31,14 +31,14 @@ Each level takes about fifteen minutes, and most of it is jumping.
 
 The players have no names and no fixed number:
 
-* **Joining:** a head which appears in the camera picture gets a dwarf of a free color (red, blue, green or yellow, the first free one), let down into the mine on a rope to the deepest dwarf (or, at the start, standing on the grass). In the camera picture, every player wears a **miner's helmet with a glowing lamp**, the brim in the color of her dwarf, so that each child sees which dwarf is hers; the helmet sits over her hair and tilts with her head, and her forehead covers the middle of the brim (the game paints the face of the camera picture again over the helmet, with the shadow of the brim), so that she wears it; over the menu cards, her helmet shows where she points.
+* **Joining:** a head which appears in the camera picture gets a dwarf of a free color (red, blue, green or yellow, the first free one), let down into the mine on a rope to the deepest dwarf (or, at the start, standing on the grass). The camera picture lies dimly over the whole mine (`CameraOverlay`), zoomed so that the lamp of each player lies right above the block of her dwarf, and every player wears a **miner's helmet with a glowing lamp** in it, the brim in the color of her dwarf; the helmet tilts with her head, and **a dim beam of light** shines from its lamp down to her dwarf (`scenes/effects/beam.gdshader`), so that each child sees which dwarf is hers and where it stands. In the menus, the beam shines on the card where she stands.
 * **Leaving:** a dwarf whose head left the picture waits for 4 seconds, and then leaves the mine.
 * **Coming back:** the vision recognizes the players by their faces (section 8): a player who comes back gets her identity, and while her dwarf still waits, her dwarf. A new face is a new player, with a dwarf of its own.
 * **Staying together:** a dwarf left above the screen for 2.5 s is let down on a rope to the deepest dwarf. The screen follows the dwarves and keeps the deepest in view.
 
 ## 4. The mine
 
-The mine is 24 blocks wide (the outer columns are its walls), with the sky and the grass at the top and the treasure hall at the bottom; the screen shows about 12 rows. There is nothing a pickaxe can not break below the dwarves (apart from the gates of the puzzles), since a dwarf can only dig down: anything unbreakable underfoot would trap it.
+The mine is 11 blocks wide (the outer columns are its walls), with the sky and the grass at the top and the treasure hall at the bottom; the screen shows about 5.7 rows. The blocks are big, so that a child hits the block she stands on even if she sways a little. There is nothing a pickaxe can not break below the dwarves (apart from the gates of the puzzles), since a dwarf can only dig down: anything unbreakable underfoot would trap it.
 
 * **Earth and rock** (3 and 4 hits). The deeper, the more rock; some levels have bands of rock across the mine and clumps of rock.
 * **Caves**, where the dwarves drop a few rows at once.
@@ -113,7 +113,7 @@ Light tan earth and rock with glowing ember veins in a dark red cave, under an e
 6. **The level**, with its bar at the top (the name, the gems, how deep the dwarves came, and how full of water the mine is) and the camera picture in the corner, with a miner's helmet on every player. A tip explains a thing the first time it happens (the first gas, dragon, water, booster, plate, gate and rope).
 7. **The end:** "Treasure found!" with the gems and the stars (Next level, Again, Levels), or "The mine is flooded!" (Try again, Levels). Escape pauses (Go on, Start again, Levels).
 
-**Every menu is a row of at most six big cards, played like the game:** each head in the camera picture has a helmet over the card where it stands; stepping left and right moves it, and a jump presses the card, once the head stood on it for 0.3 s. Behind the cards, the title painting and the camera picture show dimly, mirrored. The mouse and the keys (Left, Right, Enter or Space, Escape) work, too.
+**Every menu is a row of at most six big cards, played like the game:** behind the cards, the title painting and the camera picture show dimly, mirrored and zoomed as in the mine, each player wears a helmet, and the beam of light of her lamp shines on the card where she stands (the middle 40 % of the picture spans the cards, as it spans the mine, `Vision.HEAD_RANGE`). Stepping left and right moves the beam; like a dwarf on its block, it stays on its card until the head is a quarter of a card beyond its edge for 0.1 s, so that a sway or a jump does not move it. A jump presses the card, once the head stood on it for 0.3 s (the card then shows "Jump!"). The mouse and the keys (Left, Right, Enter or Space, Escape) work, too.
 
 ## 8. Saving
 
@@ -150,5 +150,5 @@ Every expedition is JSON in `user://saves/<id>.json`, with a format version (so 
 ## 12. Open questions
 
 1. The thresholds of the jumps wait for recordings of children, and the threshold of the faces for children who come and go.
-2. Whether the levels feel like fifteen minutes with real children, who pause, miss and wander; the bots jump every 1.6 s without a break.
+2. Whether the levels feel like three to five minutes with real children, who pause, miss and wander; the bots jump every 1.6 s without a break.
 3. Translations, as in the other games.

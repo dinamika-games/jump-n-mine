@@ -1,8 +1,9 @@
 extends SceneTree
 ## Let bots play every level, one jump every 1.6 s each, and check that the
-## level can be finished (the puzzles, too), that one dwarf takes about 15
-## minutes (between 11 and 20), and that more dwarves, who cooperate on the
-## twin gates, are not slower.
+## level can be finished (the puzzles, too), that one dwarf takes about 6
+## minutes (between 4 and 8; a player who jumps about once a second, as in the
+## recordings, takes about 4), and that more dwarves, who cooperate on the twin
+## gates, are not slower.
 ##
 ## The tests test_levels_world_<n>.gd play the levels of one world each, so
 ## that they run in parallel; run this script itself to play all of them.
@@ -91,8 +92,8 @@ func _run() -> void:
             )
         if minutes.has(1):
             _check(
-                minutes[1] >= 11.0 and minutes[1] <= 20.0,
-                "%s: one dwarf takes about 15 minutes, got %.1f" % [level["id"], minutes[1]]
+                minutes[1] >= 4.0 and minutes[1] <= 8.0,
+                "%s: one dwarf takes about 6 minutes, got %.1f" % [level["id"], minutes[1]]
             )
             for players in minutes:
                 _check(

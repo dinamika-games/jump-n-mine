@@ -10,7 +10,7 @@ const STEPS := [
     ["Step left and right: your dwarf walks with you.", 4.0],
     ["Jump! Your dwarf swings the pickaxe at the block below.", 5.0],
     ["Dig a step, then hop onto the next block to move sideways.", 5.0],
-    ["Wave an arm to the side: your dwarf hits the block beside it.", 5.0],
+    ["Punch to the side: your dwarf hits the block beside it.", 5.0],
     ["Three or four hits break a block. Grab the gems!", 4.0],
     ["Green gas explodes: step away! Hammer the springs shut.", 5.0],
     ["Dragons spit fire from above: step aside! Find the treasure.", 5.0],

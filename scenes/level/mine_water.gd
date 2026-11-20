@@ -18,7 +18,7 @@ static func flow(mine: Mine, dt: float) -> void:
         var rate := 0.12
         for spring in mine.level.get("springs", []):
             if (spring["side"] == "left") == (sx == 0):
-                rate = float(spring["rate"])
+                rate = float(spring["rate"]) * Mine.AREA_SCALE
         var added := minf(rate * dt, 1.0 - mine.water[j])
         if added > 0.0:
             mine.water[j] += added
@@ -30,7 +30,7 @@ static func flow(mine: Mine, dt: float) -> void:
 
     # NOTE (mristin):
     # The water seeps away slowly through the cracks of the mine.
-    var drain := float(mine.level.get("drain", 0.0)) * dt
+    var drain := float(mine.level.get("drain", 0.0)) * Mine.AREA_SCALE * dt
     if drain > 0.0 and mine.water_total > 0.0:
         var keep := maxf(0.0, (mine.water_total - drain) / mine.water_total)
         for k in range(mine.water.size()):

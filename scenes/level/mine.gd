@@ -22,13 +22,18 @@ enum State { PLAYING, WON, FLOODED }
 const MAX_DWARVES := 4
 
 ## The mine is this many cells wide; the outer columns are the walls.
-const WIDTH := 24
+const WIDTH := 11
+
+## The levels in [LevelCatalog] count their caves, gas pockets and water for a
+## mine of 22 inner columns; a narrower mine gets this share of them.
+const AREA_SCALE := (WIDTH - 2) / 22.0
 
 ## The rows of the sky above the grass.
 const SKY_ROWS := 3
 
-## How many rows the screen shows.
-const VIEW_ROWS := 12.4
+## How many rows the screen shows: the mine fills the width of the 1920 x 1080
+## screen, below the bar of 88 pixels at the top (see [MineView]).
+const VIEW_ROWS := WIDTH * (1080.0 - 88.0) / 1920.0
 
 ## How many hits each kind of block takes.
 const HITS := {Cell.DIRT: 3, Cell.ROCK: 4, Cell.GAS: 1, Cell.SPRING: 3}
@@ -48,8 +53,13 @@ const GRAVITY := 34.0
 ## How fast a dwarf walks, in cells per second.
 const WALK_SPEED := 6.5
 
-## How high a dwarf hops when its player jumps, in cells.
+## How high a dwarf hops when its player jumps while it walks, in cells (see
+## [method _hops]).
 const HOP := 1.25
+
+## How high a dwarf bobs when its player jumps while it stands still, in cells:
+## barely, so that it stays on its block (see [method _hops]).
+const BOB := 0.2
 
 ## How high a dwarf hops with the spring boots, in cells.
 const HOP_BOOTS := 2.3
@@ -310,9 +320,25 @@ func jump(player: int, strength := 1.0) -> void:
         events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
 
     if dwarf.on_ground:
-        var hop := HOP_BOOTS if dwarf.has("boots") else HOP
+        var hop := BOB
+        if _hops(dwarf):
+            hop = HOP_BOOTS if dwarf.has("boots") else HOP
         dwarf.vel.y = -sqrt(2.0 * GRAVITY * hop)
         dwarf.on_ground = false
+
+
+## Whether the jump of the dwarf is a hop: while it walks (over a hole, say) or
+## leans against a block beside its feet, to climb onto it. A dwarf which
+## stands still only bobs, so that it keeps digging the block under its feet.
+func _hops(dwarf: Dwarf) -> bool:
+    var dx := dwarf.target_x - dwarf.pos.x
+    if absf(dx) > 0.3:
+        return true
+    if absf(dx) < 0.05:
+        return false
+    var side := signf(dx)
+    var x := int(floor(dwarf.pos.x + side * (DWARF_HALF_WIDTH + 0.05)))
+    return x != int(floor(dwarf.pos.x)) and is_solid(x, int(floor(dwarf.pos.y - 0.5)))
 
 
 ## The player swung an arm out to the side (-1 left, 1 right): the dwarf swings
@@ -347,7 +373,7 @@ func take_events() -> Array[Dictionary]:
 
 ## How full of water the mine is, in [0, 1]; at 1, it is flooded.
 func flood_level() -> float:
-    var flood := float(level.get("flood", 60.0))
+    var flood := float(level.get("flood", 60.0)) * AREA_SCALE
     return clampf(water_total / flood, 0.0, 1.0) if flood > 0.0 else 0.0
 
 
@@ -398,15 +424,16 @@ func step(dt: float) -> void:
 
 
 ## The count of the level (e.g., "gems").
+## A count of the level, for the area of this mine (see [constant AREA_SCALE]).
 func _scaled(field: String) -> int:
-    return int(level.get(field, 0))
+    return int(round(float(level.get(field, 0)) * AREA_SCALE))
 
 
 func _generate() -> void:
     var rng := RandomNumberGenerator.new()
     rng.seed = int(level.get("seed", 0))
 
-    var depth := _scaled("depth")
+    var depth := int(level.get("depth", 0))
     # NOTE (mristin):
     # The sky, the earth, the treasure chamber (3 rows of air and its floor) and
     # the bedrock at the bottom.
@@ -473,7 +500,7 @@ func _generate() -> void:
     # NOTE (mristin):
     # The treasure chamber: three rows of air, the chest in the middle of its
     # floor.
-    var chamber_x := rng.randi_range(4, WIDTH - 9)
+    var chamber_x := rng.randi_range(2, WIDTH - 7)
     for yy in range(bottom, bottom + 3):
         for xx in range(chamber_x, chamber_x + 5):
             cells[index(xx, yy)] = Cell.AIR
@@ -500,7 +527,7 @@ func _generate() -> void:
     # NOTE (mristin):
     # The gems, spread over the whole depth: each gem lies in its own band of
     # rows, so that the dwarves find gems all the way down.
-    var gem_count := _scaled("gems")
+    var gem_count := int(level.get("gems", 0))
     for g in range(gem_count):
         var band_top := top + 1 + int(float(g) / gem_count * (depth - 2))
         var band_bottom := top + 1 + int(float(g + 1) / gem_count * (depth - 2))
@@ -958,6 +985,6 @@ func _check_end() -> void:
             state = State.WON
             events.append({"type": "won", "pos": Vector2(chest) + Vector2(0.5, 0.5)})
             return
-    if level.get("flood", 0.0) > 0.0 and water_total >= float(level["flood"]):
+    if level.get("flood", 0.0) > 0.0 and water_total >= float(level["flood"]) * AREA_SCALE:
         state = State.FLOODED
         events.append({"type": "flooded", "pos": Vector2(WIDTH / 2.0, view_top)})

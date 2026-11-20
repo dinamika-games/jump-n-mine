@@ -64,7 +64,7 @@ func carve(mine: Mine, rng: RandomNumberGenerator, top: int, depth: int) -> void
                 mine.items.erase(mine.index(x, y))
         var plate_xs: Array[int] = []
         if puzzle.kind == "twin":
-            plate_xs = [rng.randi_range(2, 6), rng.randi_range(Mine.WIDTH - 7, Mine.WIDTH - 3)]
+            plate_xs = [rng.randi_range(2, 4), rng.randi_range(Mine.WIDTH - 5, Mine.WIDTH - 3)]
         else:
             plate_xs = [
                 (

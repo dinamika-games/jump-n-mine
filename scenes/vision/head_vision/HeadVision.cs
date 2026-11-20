@@ -53,11 +53,20 @@ public partial class HeadVision : Node
     public delegate void HeadJumpedEventHandler(int id, float strength);
 
     /// <summary>
-    /// Signal that the player of the head swung an arm out to the side: -1 to
+    /// Signal that the player of the head swung a fist to the side: -1 to
     /// the left of the mirrored picture, 1 to the right (see <see cref="SwingGauge"/>).
     /// </summary>
     [Signal]
     public delegate void HeadSwungEventHandler(int id, int side);
+
+    /// <summary>
+    /// Signal where the wrists of the player of the head are, for the
+    /// recordings: the left wrist across the body and above its shoulder, then
+    /// the right one (in head sizes; NaN where unknown, see
+    /// <see cref="SwingGauge.Arms"/>).
+    /// </summary>
+    [Signal]
+    public delegate void HeadArmsEventHandler(int id, Vector4 arms);
 
     [Export]
     public int MaxHeads = 8;
@@ -119,6 +128,7 @@ public partial class HeadVision : Node
         Lost,
         Jumped,
         Swung,
+        Arms,
     }
 
     private readonly struct HeadEvent
@@ -568,6 +578,18 @@ public partial class HeadVision : Node
                         int side = swing.Observe(
                             frame.Timestamp, track.Pose!, track.Size, frame.Width, frame.Height
                         );
+                        // NOTE (mristin):
+                        // The left arm travels as the position, the right one as
+                        // the size and the rise.
+                        _events.Enqueue(
+                            new HeadEvent(
+                                EventKind.Arms,
+                                track.Id,
+                                new Vector2(swing.Arms[0], swing.Arms[1]),
+                                swing.Arms[2],
+                                swing.Arms[3]
+                            )
+                        );
                         if (side != 0)
                         {
                             // NOTE (mristin):
@@ -660,6 +682,14 @@ public partial class HeadVision : Node
                 case EventKind.Swung:
                     GD.Print($"The head {headEvent.Id} swung to the {(headEvent.Rise < 0f ? "left" : "right")}.");
                     EmitSignal(SignalName.HeadSwung, headEvent.Id, (int)headEvent.Rise);
+                    break;
+
+                case EventKind.Arms:
+                    EmitSignal(
+                        SignalName.HeadArms,
+                        headEvent.Id,
+                        new Vector4(headEvent.Position.X, headEvent.Position.Y, headEvent.Size, headEvent.Rise)
+                    );
                     break;
             }
         }

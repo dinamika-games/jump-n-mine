@@ -3,14 +3,14 @@
 **Jump 'n' Mine is a free digging game for children, played by jumping in front of a webcam, alone or with up to three friends who come and go as they like.**
 
 You are a dwarf in a mine.
-Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; wave an arm to the side, and it swings at the block beside it.
+Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; punch to the side, and it swings at the block beside it.
 Three or four hits break a block, which cracks more with every hit.
 Dig down through the earth and the rock, gather the gems, grab the boosters, step away from the exploding gas, hammer the springs shut before the water floods the mine, dodge the dragons' fire, open the iron gates with the stone plates (together, when your friends are there), and find the treasure at the bottom.
 Nobody dies: when the mine floods, the dwarves climb out and try again.
 
 Whoever steps in front of the camera gets a dwarf, with a miner's helmet over her head in the camera picture; whoever leaves takes her dwarf along, and gets it back when she returns, since the game recognizes her face.
 
-There are fifteen levels in three worlds (The Copper Hills, The Sunken Halls and The Dragon Deeps), each about fifteen minutes of jumping.
+There are fifteen levels in three worlds (The Copper Hills, The Sunken Halls and The Dragon Deeps), each three to five minutes of jumping.
 See [DESIGN.md](DESIGN.md) for the whole design.
 
 **No network access.**

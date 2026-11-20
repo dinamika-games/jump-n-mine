@@ -2,8 +2,9 @@ class_name CardMenu
 extends Control
 
 ## A menu of big cards in a row, played with the body like the game: step left
-## or right to point at a card (each head in the camera picture has its own
-## helmet over the cards), and jump to press it. The mouse and the keys (Left,
+## or right to point at a card (each player wears a helmet in the camera
+## picture behind the cards, and its lamp shines on her card, see
+## [CameraOverlay]), and jump to press it. The mouse and the keys (Left,
 ## Right, Enter or Space, and Escape for "back") work, too.
 ##
 ## A card is a dictionary with "id", "title", and optionally "subtitle",
@@ -15,13 +16,15 @@ signal chosen(id: String)
 ## player who jumps while stepping over does not press the wrong card.
 const SETTLE := 0.3
 
-## The heads are followed from this to this fraction of the camera picture.
-const HEAD_RANGE := Vector2(0.15, 0.85)
+## A head points at the next card only once it is this far (in cards) beyond
+## the edge of its card, for [constant STEP_HOLD] seconds, so that a jump or a
+## sway near the edge does not move it to the next card (and makes it wait for
+## [constant SETTLE] again).
+const CARD_MARGIN := 0.25
+const STEP_HOLD := 0.1
 
-## The shade over the title painting behind the menus, and the tint of the dim
-## camera picture over it.
+## The shade over the title painting behind the menus.
 const _BACKDROP_SHADE := Color(0.06, 0.03, 0.1, 0.45)
-const _BACKDROP_PICTURE_TINT := Color(1, 1, 1, 0.22)
 
 var title := ""
 var subtitle := ""
@@ -36,17 +39,22 @@ var card_height := 420.0
 
 ## The card under the mouse or chosen with the keys, -1 for none.
 var _focused := -1
-## Per head id: "card" and "since" (seconds).
+## Per head id: "card", "since" (seconds) and "beyond" (how long the head is
+## beyond the edge of its card, see [constant CARD_MARGIN]).
 var _pointing := {}
 var _pressed := -1
 var _pressed_time := 0.0
 var _time := 0.0
 var _font: Font = ThemeDB.fallback_font
+var _overlay := CameraOverlay.new()
 
 
 func _init() -> void:
     set_anchors_preset(Control.PRESET_FULL_RECT)
     mouse_filter = Control.MOUSE_FILTER_STOP
+    _overlay.show_picture = false
+    _overlay.target_of_head = _beam_target
+    add_child(_overlay)
 
 
 func _ready() -> void:
@@ -101,12 +109,20 @@ func _card_at(point: Vector2) -> int:
     return -1
 
 
-## The card a head points at, by where it stands in the picture.
-func _card_of_head(position: Vector2) -> int:
-    if cards.is_empty():
-        return -1
-    var x := clampf((position.x - HEAD_RANGE.x) / (HEAD_RANGE.y - HEAD_RANGE.x), 0.0, 0.999)
-    return int(x * cards.size())
+## Where a head stands across the cards, in cards (0 at the left edge of the
+## first card).
+func _cards_across(position: Vector2) -> float:
+    return float(get_node("/root/Vision").across(position)) * cards.size()
+
+
+## Where the beam of light of a head goes (see [CameraOverlay]): onto the card
+## it points at.
+func _beam_target(id: int, _slot: int) -> Variant:
+    var card := int(_pointing.get(id, {}).get("card", -1))
+    if card < 0 or card >= cards.size():
+        return null
+    var rect := _card_rect(card)
+    return Vector3(rect.get_center().x, rect.position.y + rect.size.y * 0.35, rect.size.x * 0.8)
 
 
 func _process(delta: float) -> void:
@@ -117,18 +133,43 @@ func _process(delta: float) -> void:
         var seen := {}
         for id in vision.heads:
             seen[id] = true
-            var card := _card_of_head(vision.heads[id]["position"])
-            var pointing: Dictionary = _pointing.get(id, {"card": -1, "since": 0.0})
-            if pointing["card"] != card:
-                pointing = {"card": card, "since": 0.0}
-                if card >= 0 and visible:
+            if cards.is_empty():
+                continue
+            var x := _cards_across(vision.heads[id]["position"])
+            var pointing: Dictionary = _pointing.get(id, {})
+            if pointing.is_empty() or int(pointing["card"]) >= cards.size():
+                pointing = {
+                    "card": clampi(int(x), 0, cards.size() - 1), "since": 0.0, "beyond": 0.0
+                }
+                if visible:
                     get_node("/root/Sounds").play("select")
             else:
+                var card := int(pointing["card"])
                 pointing["since"] = float(pointing["since"]) + delta
+                if x < card - CARD_MARGIN or x > card + 1.0 + CARD_MARGIN:
+                    pointing["beyond"] = float(pointing["beyond"]) + delta
+                else:
+                    pointing["beyond"] = 0.0
+                if float(pointing["beyond"]) >= STEP_HOLD:
+                    pointing = {
+                        "card": clampi(int(x), 0, cards.size() - 1), "since": 0.0, "beyond": 0.0
+                    }
+                    if visible:
+                        get_node("/root/Sounds").play("select")
             _pointing[id] = pointing
         for id in _pointing.keys():
             if not seen.has(id):
                 _pointing.erase(id)
+
+        # NOTE (mristin):
+        # The players wear the colors of their helmet markers, from the left.
+        _overlay.slot_of_head.clear()
+        var order: Array[int] = vision.ids_from_left()
+        for rank in range(order.size()):
+            _overlay.slot_of_head[order[rank]] = rank
+        if not cards.is_empty():
+            _overlay.span = Vector2(_card_rect(0).position.x, _card_rect(cards.size() - 1).end.x)
+        _overlay.anchor_y = size.y * cards_top * 0.62
     queue_redraw()
 
 
@@ -202,6 +243,7 @@ func _draw() -> void:
         draw_backdrop(self, size)
     else:
         draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.03, 0.06, 0.72))
+    _overlay.draw_picture(self)
 
     _text(title, Vector2(size.x / 2.0, 150.0), 84, Color("#ffe2a0"), true)
     if subtitle != "":
@@ -222,60 +264,13 @@ func _draw() -> void:
         _text(vision.status(), Vector2(size.x / 2.0, size.y - 22.0), 22, Color("#c8b8a8"), false)
 
 
-## The cave behind the menus, with the camera picture dimly over it, mirrored.
+## The cave behind the menus (the camera picture lies over it, see
+## [CameraOverlay]).
 static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
     # NOTE (mristin):
     # The title painting, darkened, so that the cards stand out.
     canvas.draw_texture_rect(Art.picture("title.png"), Rect2(Vector2.ZERO, area), false)
     canvas.draw_rect(Rect2(Vector2.ZERO, area), _BACKDROP_SHADE)
-    var vision := canvas.get_node_or_null("/root/Vision")
-    if vision == null:
-        return
-    var texture: Texture2D = vision.preview()
-    if texture == null:
-        return
-    # NOTE (mristin):
-    # The camera picture, dim and mirrored, so that the players see themselves
-    # behind the cards, each with a miner's helmet in the color of her helmet
-    # marker over the cards.
-    var ratio := texture.get_size().x / maxf(1.0, texture.get_size().y)
-    var picture := Rect2((area.x - area.y * ratio) / 2.0, 0, area.y * ratio, area.y)
-    canvas.draw_set_transform(Vector2(area.x, 0), 0.0, Vector2(-1, 1))
-    canvas.draw_texture_rect(
-        texture,
-        Rect2(area.x - picture.end.x, 0, picture.size.x, picture.size.y),
-        false,
-        _BACKDROP_PICTURE_TINT
-    )
-    canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-    # NOTE (mristin):
-    # The faces are painted again over the helmets, with all that lies under
-    # them: the title painting, the shade and the camera picture.
-    var layers := [
-        {"texture": Art.picture("title.png"), "rect": Rect2(Vector2.ZERO, area)},
-        {"color": _BACKDROP_SHADE},
-        {"texture": texture, "rect": picture, "flip": true, "color": _BACKDROP_PICTURE_TINT},
-    ]
-    var face := func(outline: PackedVector2Array) -> void: Art.camera_face(canvas, outline, layers)
-    var order: Array[int] = vision.ids_from_left()
-    var time := Time.get_ticks_msec() / 1000.0
-    for rank in range(order.size()):
-        var head: Dictionary = vision.heads[order[rank]]
-        var position: Vector2 = head["position"]
-        var size: float = head["size"] * picture.size.y
-        var top := picture.position + position * picture.size - Vector2(0, size * 0.5)
-        var line: float = head.get("jump_line", NAN)
-        if not is_nan(line):
-            var center_x := picture.position.x + position.x * picture.size.x
-            Art.jump_line(
-                canvas,
-                picture.position.y + line * picture.size.y,
-                maxf(0.0, center_x - size * 1.4),
-                minf(area.x, center_x + size * 1.4),
-                bool(head.get("jumping", false)),
-                10.0
-            )
-        Art.miner_hat(canvas, top, size, rank, time + rank, head.get("roll", 0.0), face)
 
 
 func _draw_card(i: int, focused: bool) -> void:
@@ -336,33 +331,23 @@ func _draw_card(i: int, focused: bool) -> void:
         )
 
 
+## "Jump!" over the cards which a head points at long enough to press them.
 func _draw_heads() -> void:
-    var vision := get_node_or_null("/root/Vision")
-    if vision == null:
-        return
-    var order: Array[int] = vision.ids_from_left()
-    for rank in range(order.size()):
-        var id := order[rank]
-        if not _pointing.has(id):
-            continue
+    var shown := {}
+    for id in _pointing:
         var card := int(_pointing[id]["card"])
-        if card < 0 or card >= cards.size():
+        if card < 0 or card >= cards.size() or shown.has(card):
             continue
-        var rect := _card_rect(card)
-        var count := 0
-        for other in order.slice(0, rank):
-            if _pointing.has(other) and int(_pointing[other]["card"]) == card:
-                count += 1
-        var center := Vector2(rect.get_center().x + (count - 0.0) * 70.0, rect.position.y - 70.0)
-        var rise: float = vision.heads[id].get("rise", 0.0)
-        center.y -= clampf(rise, 0.0, 1.5) * 30.0
-        var settle := clampf(float(_pointing[id]["since"]) / SETTLE, 0.0, 1.0)
-        draw_circle(center, 34.0, Art.OUTLINE)
-        draw_circle(center, 30.0, Dwarves.color(rank))
-        draw_arc(center + Vector2(0, 6), 26.0, PI, TAU, 16, Art.STEEL, 18.0)
-        draw_circle(center + Vector2(0, -16), 6.0, Color("#ffe65a"))
-        if settle >= 1.0:
-            _text("Jump!", center + Vector2(0, -52), 28, Color("#ffe2a0"), true)
+        if float(_pointing[id]["since"]) >= SETTLE:
+            shown[card] = true
+            var rect := _card_rect(card)
+            _text(
+                "Jump!",
+                Vector2(rect.get_center().x, rect.position.y - 30.0),
+                40,
+                Color("#ffe2a0"),
+                true
+            )
 
 
 ## Draw an icon of the menus: "play", "new", "continue", "expedition",

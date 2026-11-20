@@ -153,19 +153,19 @@ func _check_side_swing() -> void:
 func _check_explosion() -> void:
     var mine := Mine.new(_plain(), 1)
     var y := Mine.SKY_ROWS + 6
-    var dwarf := _stand(mine, 3, Mine.SKY_ROWS + 2)
-    mine.cells[mine.index(12, y)] = Mine.Cell.GAS
-    mine.hits_left[mine.index(12, y)] = 1
-    mine.cells[mine.index(13, y)] = Mine.Cell.ROCK
-    mine.cells[mine.index(14, y)] = Mine.Cell.GAS
-    mine.hits_left[mine.index(14, y)] = 1
-    mine.items[mine.index(12, y + 1)] = "gem"
-    mine._release(mine.index(12, y), 0.1)
+    var dwarf := _stand(mine, 1, Mine.SKY_ROWS + 2)
+    mine.cells[mine.index(6, y)] = Mine.Cell.GAS
+    mine.hits_left[mine.index(6, y)] = 1
+    mine.cells[mine.index(7, y)] = Mine.Cell.ROCK
+    mine.cells[mine.index(8, y)] = Mine.Cell.GAS
+    mine.hits_left[mine.index(8, y)] = 1
+    mine.items[mine.index(6, y + 1)] = "gem"
+    mine._release(mine.index(6, y), 0.1)
     _wait(mine, 1.0)
-    _check(mine.cell(12, y) == Mine.Cell.AIR, "the gas blows up")
-    _check(mine.cell(13, y) == Mine.Cell.AIR, "the explosion breaks the rock")
-    _check(mine.cell(12, y + 2) == Mine.Cell.AIR, "the explosion reaches two blocks down")
-    _check(mine.cell(14, y) == Mine.Cell.AIR, "the explosion sets off the next gas pocket")
+    _check(mine.cell(6, y) == Mine.Cell.AIR, "the gas blows up")
+    _check(mine.cell(7, y) == Mine.Cell.AIR, "the explosion breaks the rock")
+    _check(mine.cell(6, y + 2) == Mine.Cell.AIR, "the explosion reaches two blocks down")
+    _check(mine.cell(8, y) == Mine.Cell.AIR, "the explosion sets off the next gas pocket")
     _check(mine.gems == 1, "the gem in a blown up block is collected")
     _check(dwarf.stun == 0.0, "a dwarf far away is not dizzy")
 

@@ -8,8 +8,9 @@ extends Node2D
 ## How long an explosion shows, in seconds.
 const BLAST_TIME := 1.3
 
-## The size of a cell on the screen, in pixels.
-const CELL := 80.0
+## The size of a cell on the screen, in pixels: the mine fills the width of the
+## screen.
+const CELL := 1920.0 / Mine.WIDTH
 
 ## The mine starts below the bar at the top of the screen.
 const TOP := 88.0
@@ -267,10 +268,10 @@ func _draw_cell(x: int, y: int) -> void:
         var center := rect.get_center()
         if item == "gem":
             # The gems show through the block, so that the dwarves dig for them.
-            Art.gem(self, center, 16.0 + sin(_time * 3.0 + x) * 1.5, x + y)
+            Art.gem(self, center, CELL * (0.33 + sin(_time * 3.0 + x) * 0.02), x + y)
         else:
-            draw_circle(center, 26.0, Color(1, 0.95, 0.5, 0.25 + 0.15 * sin(_time * 4.0)))
-            Art.booster(self, center, 20.0, item)
+            draw_circle(center, CELL * 0.44, Color(1, 0.95, 0.5, 0.25 + 0.15 * sin(_time * 4.0)))
+            Art.booster(self, center, CELL * 0.36, item)
 
 
 func _draw_water(first: int, last: int) -> void:
@@ -322,9 +323,9 @@ func _draw_items(first: int, last: int) -> void:
         var center := to_screen(Vector2(x + 0.5, y + 0.6 + sin(_time * 2.0 + x) * 0.05))
         var item := str(mine.loose[i])
         if item == "gem":
-            Art.gem(self, center, 20.0, x * 3 + y)
+            Art.gem(self, center, CELL * 0.3, x * 3 + y)
         else:
-            Art.booster(self, center, 24.0, item)
+            Art.booster(self, center, CELL * 0.32, item)
 
 
 func _draw_chest() -> void:

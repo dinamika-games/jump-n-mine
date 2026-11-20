@@ -10,15 +10,24 @@ signal head_appeared(id: int, position: Vector2)
 signal head_moved(id: int, position: Vector2)
 signal head_lost(id: int)
 signal head_jumped(id: int, strength: float)
-## The player of the head swung an arm out to the side: -1 to the left of the
+## The player of the head swung a fist to the side: -1 to the left of the
 ## mirrored picture, 1 to the right.
 signal head_swung(id: int, side: int)
 
-## A full jump rises this many head sizes above standing, and a low one (a
-## weaker hit) at least [constant LOW_JUMP_HEIGHT] (see JumpGauge); for the
-## jump meters.
-const JUMP_HEIGHT := 0.35
-const LOW_JUMP_HEIGHT := 0.2
+## Where the wrists of the player are, for the recordings: the left wrist across
+## the body and above its shoulder, then the right one, in head sizes (NaN where
+## unknown).
+signal head_arms(id: int, arms: Vector4)
+
+## The heads are followed from this to this fraction of the camera picture, in
+## the mine and in the menus: a player reaches the walls of the mine (or the
+## outer cards) in the middle of the room, where she still sees the screen and
+## a short step moves her dwarf, and her fists stay in the picture when she
+## punches towards the wall (a fist which leaves it still counts, see
+## SwingGauge.cs). In a recording, the punches reached about 30 % of the
+## picture beyond the head, and those of a player at the edge of the picture
+## were cut off.
+const HEAD_RANGE := Vector2(0.3, 0.7)
 
 ## Give up waiting for the camera server after this many seconds.
 const _CAMERA_SERVER_TIMEOUT := 7.0
@@ -44,6 +53,10 @@ var camera_problem := ""
 ## Whether we still look for the camera.
 var searching := false
 
+## A picture to show instead of the camera picture, for the screenshots (see
+## dev/pictures/overlay_preview.gd).
+var preview_override: Texture2D = null
+
 @onready var service: Node = $HeadVision
 
 
@@ -53,6 +66,7 @@ func _ready() -> void:
     service.HeadLost.connect(_on_lost)
     service.HeadJumped.connect(_on_jumped)
     service.HeadSwung.connect(func(id: int, side: int) -> void: head_swung.emit(id, side))
+    service.HeadArms.connect(func(id: int, arms: Vector4) -> void: head_arms.emit(id, arms))
 
     if "--no-camera" in OS.get_cmdline_user_args():
         camera_problem = "The camera is switched off. Play with the keyboard."
@@ -70,7 +84,7 @@ func has_camera() -> bool:
 
 ## The camera picture, not mirrored (draw it with flip_h), or null.
 func preview() -> Texture2D:
-    return service.GetPreview()
+    return preview_override if preview_override != null else service.GetPreview()
 
 
 ## What to tell the players about the camera: empty while all is well.
@@ -80,6 +94,12 @@ func status() -> String:
     if searching:
         return "Looking for the camera..."
     return service.Status
+
+
+## Where the head at the position (in the mirrored picture) stands across the
+## room, from 0 (left) to 1 (right; see [constant HEAD_RANGE]).
+func across(position: Vector2) -> float:
+    return clampf((position.x - HEAD_RANGE.x) / (HEAD_RANGE.y - HEAD_RANGE.x), 0.0, 1.0)
 
 
 ## The ids of the heads in the picture, from the left to the right.

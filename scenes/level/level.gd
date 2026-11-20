@@ -14,7 +14,8 @@ extends Node2D
 ## The keys work, too (see [constant KEYS]): the first key of a player brings
 ## its dwarf. Without a camera, the first dwarf is there from the start. Start
 ## the game with [code]-- --bots[/code] (or [code]--bots=3[/code]) to let bots
-## play, to watch a level.
+## play, to watch a level, and with [code]-- --record[/code] to record the
+## players (see [Recorder]).
 
 ## The keys of the players: left, right and jump.
 const KEYS := [
@@ -24,8 +25,17 @@ const KEYS := [
     [KEY_KP_4, KEY_KP_6, KEY_KP_8],
 ]
 
-## The heads are followed from this to this fraction of the camera picture.
-const HEAD_RANGE := Vector2(0.12, 0.88)
+## A dwarf stands in the middle of a block and walks to the next one only once
+## its head is this far (in cells) beyond the edge of the block, so that it
+## stays on the block it digs while its player sways and jumps. In recordings
+## of players who dug on one spot, the head swayed about 2 % of the width of
+## the picture over a second (half a cell), and as far during a jump.
+const BLOCK_MARGIN := 0.5
+
+## The head must stay beyond the edge of the block this long (in seconds) before
+## the dwarf steps to the next block, so that a glitch of the tracking (in a
+## recording, the head jumped by more than a block for a frame) does not move it.
+const STEP_HOLD := 0.1
 
 ## A dwarf waits this long for its head to come back, in seconds.
 const WAIT_FOR_HEAD := 4.0
@@ -37,6 +47,7 @@ var level: Dictionary
 var mine: Mine
 var view: MineView
 var hud: Hud
+var overlay: CameraOverlay
 ## The head of each slot: its id, or -1.
 var head_of_slot: Array[int] = [-1, -1, -1, -1]
 var bots: Array[MineBot] = []
@@ -45,10 +56,14 @@ var bots: Array[MineBot] = []
 var _waiting: Array[float] = [0.0, 0.0, 0.0, 0.0]
 ## The last head of each slot, so that a head which comes back gets its dwarf.
 var _last_head: Array[int] = [-1, -1, -1, -1]
+## How long the head of each slot is beyond the edge of its dwarf's block already,
+## in seconds (see [constant STEP_HOLD]).
+var _beyond: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _tips_shown := {}
 var _end_in := -1.0
 var _menu: CardMenu = null
 var _layer := CanvasLayer.new()
+var _recorder: Recorder = null
 
 
 func _ready() -> void:
@@ -57,6 +72,11 @@ func _ready() -> void:
     view = MineView.new(mine, int(level["world"]))
     add_child(view)
     add_child(_layer)
+    overlay = CameraOverlay.new()
+    overlay.span = Vector2(0.5, Mine.WIDTH - 0.5) * MineView.CELL
+    overlay.anchor_y = MineView.TOP + (get_viewport_rect().size.y - MineView.TOP) * 0.28
+    overlay.target_of_head = _beam_target
+    _layer.add_child(overlay)
     hud = Hud.new(mine, level)
     _layer.add_child(hud)
 
@@ -75,7 +95,21 @@ func _ready() -> void:
 
     get_node("/root/Vision").head_jumped.connect(_on_head_jumped)
     get_node("/root/Vision").head_swung.connect(_on_head_swung)
+    if "--record" in OS.get_cmdline_user_args():
+        _recorder = Recorder.new(str(level["id"]))
+        get_node("/root/Vision").head_moved.connect(_on_head_moved)
+        get_node("/root/Vision").head_arms.connect(_recorder.arms)
     hud.tip(_first_tip(), 7.0)
+
+
+## Where the beam of light of a head goes (see [CameraOverlay]): to the middle
+## of its dwarf, a block wide.
+func _beam_target(_id: int, slot: int) -> Variant:
+    var dwarf := mine.dwarf_of(slot)
+    if dwarf == null:
+        return null
+    var at := view.to_screen(dwarf.pos - Vector2(0, Mine.DWARF_HEIGHT * 0.5))
+    return Vector3(at.x, at.y, MineView.CELL * 1.1)
 
 
 func _first_tip() -> String:
@@ -97,13 +131,20 @@ func _physics_process(delta: float) -> void:
         bot.act(delta)
     mine.step(delta)
     var events := mine.take_events()
+    if _recorder != null:
+        for slot in range(Mine.MAX_DWARVES):
+            var dwarf := mine.dwarf_of(slot)
+            if dwarf != null:
+                _recorder.dwarf(slot, head_of_slot[slot], dwarf)
+        for event in events:
+            _recorder.event(event)
     view.show_events(events)
     _sound(events)
 
-    hud.dwarf_of_head.clear()
+    overlay.slot_of_head.clear()
     for slot in range(head_of_slot.size()):
         if head_of_slot[slot] >= 0:
-            hud.dwarf_of_head[head_of_slot[slot]] = slot
+            overlay.slot_of_head[head_of_slot[slot]] = slot
 
     _loops()
 
@@ -131,6 +172,8 @@ func _loops() -> void:
 
 
 func _exit_tree() -> void:
+    if _recorder != null:
+        _recorder.close()
     get_node("/root/Sounds").stop_loops()
 
 
@@ -163,7 +206,7 @@ func _bind_heads(delta: float) -> void:
         _last_head[slot] = id
         _waiting[slot] = 0.0
         var dwarf := mine.add_dwarf(slot)
-        dwarf.target_x = _head_x(id)
+        dwarf.target_x = floorf(_head_x(id)) + 0.5
 
 
 ## A slot whose dwarf is not in the mine (and played by no bot), or -1.
@@ -184,11 +227,36 @@ func _free_slot() -> int:
 ## Where in the mine (in cells) the head stands.
 func _head_x(id: int) -> float:
     var position: Vector2 = get_node("/root/Vision").heads[id]["position"]
-    var t := clampf((position.x - HEAD_RANGE.x) / (HEAD_RANGE.y - HEAD_RANGE.x), 0.0, 1.0)
+    var t: float = get_node("/root/Vision").across(position)
     return 0.5 + t * (Mine.WIDTH - 1.0)
 
 
-func _steer(_delta: float) -> void:
+## Step the dwarf of the slot towards its head, block by block: it stands in
+## the middle of a block and steps to the next one once the head was beyond the
+## edge of its block (see [constant BLOCK_MARGIN]) for [constant STEP_HOLD], and
+## the dwarf arrived at its block (or the step goes back towards where the dwarf
+## stands, e.g., when a block stopped it). The walls count as blocks, too, so
+## that a dwarf can lean against them.
+func _step_towards_head(slot: int, dwarf: Mine.Dwarf, x: float, delta: float) -> void:
+    var column := floorf(dwarf.target_x)
+    var side := 0
+    if x < column - BLOCK_MARGIN:
+        side = -1
+    elif x > column + 1.0 + BLOCK_MARGIN:
+        side = 1
+    if side == 0:
+        _beyond[slot] = 0.0
+        return
+    _beyond[slot] += delta
+    if _beyond[slot] < STEP_HOLD:
+        return
+    var target := clampf(column + side, 0.0, Mine.WIDTH - 1.0) + 0.5
+    var arrived := absf(dwarf.pos.x - dwarf.target_x) < 0.15
+    if arrived or absf(target - dwarf.pos.x) < absf(dwarf.target_x - dwarf.pos.x):
+        mine.set_target(slot, target)
+
+
+func _steer(delta: float) -> void:
     if mine.state != Mine.State.PLAYING:
         return
     var heads: Dictionary = get_node("/root/Vision").heads
@@ -197,7 +265,7 @@ func _steer(_delta: float) -> void:
         var head := head_of_slot[slot]
         if head >= 0:
             if heads.has(head) and dwarf != null:
-                mine.set_target(slot, _head_x(head))
+                _step_towards_head(slot, dwarf, _head_x(head), delta)
             continue
         if slot < bots.size():
             continue
@@ -216,13 +284,21 @@ func _steer(_delta: float) -> void:
         mine.set_target(slot, dwarf.pos.x + direction * 1.0)
 
 
+func _on_head_moved(id: int, _position: Vector2) -> void:
+    _recorder.head(id, get_node("/root/Vision").heads[id])
+
+
 func _on_head_jumped(id: int, strength: float) -> void:
+    if _recorder != null:
+        _recorder.jump(id, strength)
     var slot := head_of_slot.find(id)
     if slot >= 0:
         mine.jump(slot, strength)
 
 
 func _on_head_swung(id: int, side: int) -> void:
+    if _recorder != null:
+        _recorder.swing(id, side)
     var slot := head_of_slot.find(id)
     if slot >= 0:
         mine.swing_side(slot, side)
@@ -321,6 +397,7 @@ func _show_end() -> void:
     _menu.set_cards(cards)
     _menu.chosen.connect(_on_menu)
     _layer.add_child(_menu)
+    overlay.visible = false
     if mine.state == Mine.State.WON:
         var stars := StarsBanner.new(mine.stars())
         _menu.add_child(stars)
@@ -344,6 +421,7 @@ func _show_pause() -> void:
     )
     _menu.chosen.connect(_on_menu)
     _layer.add_child(_menu)
+    overlay.visible = false
     set_physics_process(false)
     get_node("/root/Sounds").stop_loops()
 
@@ -353,6 +431,7 @@ func _on_menu(id: String) -> void:
         "resume":
             _menu.queue_free()
             _menu = null
+            overlay.visible = true
             set_physics_process(true)
         "next":
             Flow.play_level(get_tree(), Flow.level_index + 1)

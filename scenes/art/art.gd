@@ -195,21 +195,39 @@ static func camera_face(canvas: CanvasItem, outline: PackedVector2Array, layers:
 ## The shadow of the brim on the forehead, under a helmet: dark at the brim,
 ## fading out down the forehead.
 static func _brim_shadow(canvas: CanvasItem, center: Vector2, size: float, roll: float) -> void:
+    # NOTE (mristin):
+    # A head of a pixel or two has no forehead to shade.
+    if size < 4.0:
+        return
     var top := _FACE_CENTER - _FACE_RADII.y
     var bottom := _HAT_BRIM + _SHADOW_DEPTH
     var points := PackedVector2Array()
     var colors := PackedColorArray()
     # NOTE (mristin):
-    # The upper arc of the face, from its left to its right, down to the bottom
-    # of the shadow; the shadow is darkest at the top.
+    # The arc of the face above the bottom of the shadow, from its left to its
+    # right; the straight line back closes it. The arc starts and ends exactly
+    # where it crosses the bottom, since points flattened onto the bottom would
+    # lie on the closing line, and Godot could not triangulate the polygon.
+    var cut := asin(clampf((bottom - _FACE_CENTER) / _FACE_RADII.y, -1.0, 0.0))
+    var first := PI - cut
+    var last := TAU + cut
     for k in range(17):
-        var angle := PI + k * PI / 16.0
+        var angle := lerpf(first, last, float(k) / 16.0)
         var local := Vector2(cos(angle) * _FACE_RADII.x, _FACE_CENTER + sin(angle) * _FACE_RADII.y)
-        local.y = minf(local.y, bottom)
         points.append(center + (local * size).rotated(roll))
         var shade := clampf((bottom - local.y) / (bottom - top), 0.0, 1.0)
         colors.append(Color(0, 0, 0, _SHADOW_ALPHA * shade))
     canvas.draw_polygon(points, colors)
+
+
+## Where the lamp of a helmet (see [method miner_hat]) shines: it sits at 48 %
+## of the width and 34 % of the height of the helmet picture.
+static func hat_lamp(top: Vector2, size: float, roll: float = 0.0) -> Vector2:
+    var width := size * _HAT_WIDTH
+    var center := top + Vector2(0, size * 0.5)
+    var brim := Vector2(0, size * _HAT_BRIM)
+    var local := brim + Vector2((0.48 - 0.5) * width, (0.34 - 0.76) * width)
+    return center + local.rotated(roll)
 
 
 ## The outline of the face in a head (see [method miner_hat]).

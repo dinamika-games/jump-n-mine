@@ -105,7 +105,7 @@ namespace JumpNMine.Tests
             for (double end = t + 1.0; t < end; t += _dt)
             {
                 double s = 1.0 - (end - t);
-                float y = s < 0.4 ? _standing - 0.27f * _size * (float)Math.Sin(Math.PI * s / 0.4) : _standing;
+                float y = s < 0.4 ? _standing - 0.24f * _size * (float)Math.Sin(Math.PI * s / 0.4) : _standing;
                 strength += gauge.Observe(t, y, _size);
             }
             Assert.Equal(gauge.WeakStrength, strength);
@@ -189,6 +189,61 @@ namespace JumpNMine.Tests
             Assert.Equal(0, jumps);
             Assert.InRange(gauge.HeadSize, 115f, 121f);
             Assert.Equal(1, Feed(gauge, ref t, 1.0, s => s >= 0.5 ? _standing - 30f : _standing - 30f - 120f * (float)Math.Sin(Math.PI * s / 0.5), 120f));
+        }
+
+        [Fact]
+        public void Test_that_jumps_in_a_row_with_bent_knees_count_fully_all_along()
+        {
+            // NOTE (mristin):
+            // As in a recording: the player jumps in a row for half a minute,
+            // bends her knees 0.3 head sizes on each landing, and her head
+            // rises only 0.15 head sizes above standing.
+            var gauge = new JumpGauge();
+            double t = 0.0;
+            Feed(gauge, ref t, 2.0, _ => _standing);
+            float strength = 0f;
+            for (int k = 0; k < 40; k++)
+            {
+                for (double end = t + 0.7; t < end; t += _dt)
+                {
+                    double s = 0.7 - (end - t);
+                    float y = s < 0.25
+                        ? _standing + 0.3f * _size * (float)Math.Sin(Math.PI * s / 0.25)
+                        : s < 0.65
+                            ? _standing - 0.15f * _size * (float)Math.Sin(Math.PI * (s - 0.25) / 0.4)
+                            : _standing;
+                    strength += gauge.Observe(t, y, _size);
+                }
+            }
+            Assert.Equal(40, gauge.Jumps);
+            Assert.Equal(40f, strength);
+        }
+
+        [Fact]
+        public void Test_that_a_jump_right_after_stepping_back_counts()
+        {
+            // NOTE (mristin):
+            // As in a recording: the player comes in close to the camera and
+            // steps back over a second; her head shrinks to 40 % and sinks a
+            // little in the picture. Half a second later, she jumps.
+            var gauge = new JumpGauge();
+            double t = 0.0;
+            Feed(gauge, ref t, 0.5, _ => _standing, 200f);
+            for (double end = t + 1.0; t < end; t += _dt)
+            {
+                float k = (float)(1.0 - (end - t));
+                gauge.Observe(t, _standing + 20f * k, 200f - 120f * k);
+            }
+            Feed(gauge, ref t, 0.5, _ => _standing + 20f, 80f);
+
+            float strength = 0f;
+            for (double end = t + 1.0; t < end; t += _dt)
+            {
+                double s = 1.0 - (end - t);
+                float y = _standing + 20f - (s < 0.5 ? 0.45f * 80f * (float)Math.Sin(Math.PI * s / 0.5) : 0f);
+                strength += gauge.Observe(t, y, 80f);
+            }
+            Assert.Equal(1f, strength);
         }
 
         [Fact]

@@ -60,6 +60,7 @@ The arguments after `--`:
 * `--camera=<n>`: use the n-th camera which supports 640x480,
 * `--bots` (or `--bots=3`): bots play one dwarf (or as many), to watch a level,
 * `--all-levels`: open all the levels,
+* `--record`: record the heads, the jumps and the dwarves of each level played to `user://recordings/` (see `scenes/level/recorder.gd`), to tune the steering,
 * `--settings=user://other.cfg`: keep the settings in another file and the expeditions in `user://other_saves/`.
 
 The pictures are painted sprite sheets (made with an image generator from the prompts in `dev/pictures/prompts/`), cut into `assets/pictures/` by `python3 dev/pictures/cut_sprites.py <folder with the sheets>`; see the docstring of the script for the sheets it expects. `scenes/art/art.gd` draws them; only the water, the particles and the effects are drawn in code and with shaders.
@@ -82,7 +83,7 @@ $GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 \
 $GODOT --headless --path . --script tests/godot/level_playthrough.gd -- --only=07 --players=2
 ```
 
-A level should take one dwarf about fifteen minutes (between 11 and 20); the depth of the level is the main knob.
+A level should take one bot dwarf about six minutes (between 4 and 8), which is three to five minutes for a player who jumps about once a second; the depth of the level is the main knob.
 
 ## Checks before a pull request
 
@@ -91,3 +92,14 @@ venv/bin/python dev/continuous_integration/precommit.py
 ```
 
 It checks the formatting (add `--overwrite` to fix it), lints, runs the .NET tests, builds, imports, type-checks every GDScript and runs the Godot tests (`tests/godot/test_*.gd`; the levels take a few minutes).
+
+## Releasing
+
+The workflow `.github/workflows/publish.yaml` packages the game for Linux, Windows and macOS when a release is published on GitHub, and attaches the packages to the release (`jump-n-mine-<version>-<platform>.zip`, for the tag `v<version>`, e.g., `v1.0.0-rc1` for the first release candidate). You can also start it by hand on the Actions tab: without a tag, it only tries out the packaging (the packages are then the artifacts of the run); with the tag of an existing release, it attaches the packages to that release.
+
+To release:
+
+1. Set the version in `project.godot` (`config/version`, e.g., `1.0.0-rc1`), and the numeric part in the macOS preset of `export_presets.cfg` (`application/short_version` and `application/version`, e.g., `1.0.0`; macOS takes only numbers there). The workflow refuses a tag which does not match `config/version`.
+2. Merge to `main`, then publish a release on GitHub with the tag `v<version>` (mark a release candidate as a pre-release).
+
+The workflow checks that the game and the tests use the same ONNX Runtime, and that it is 1.19 (the last one whose macOS libraries run on macOS 11 on both the Intel and the Apple Silicon Macs, see `JumpNMine.csproj`); that the exports report no errors; that every package carries the native libraries of that ONNX Runtime (in the macOS app, for both the Apple Silicon and the Intel Macs); and it puts CameraServerExtension next to the executable of the Windows package, since Godot 4.6 implements no camera on Windows (see `scenes/vision/camera_extension.gd`).
