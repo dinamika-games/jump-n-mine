@@ -9,7 +9,13 @@ extends Node
 signal head_appeared(id: int, position: Vector2)
 signal head_moved(id: int, position: Vector2)
 signal head_lost(id: int)
-signal head_jumped(id: int)
+signal head_jumped(id: int, strength: float)
+
+## A full jump rises this many head sizes above standing, and a low one (a
+## weaker hit) at least [constant LOW_JUMP_HEIGHT] (see JumpGauge); for the
+## jump meters.
+const JUMP_HEIGHT := 0.35
+const LOW_JUMP_HEIGHT := 0.2
 
 ## Give up waiting for the camera server after this many seconds.
 const _CAMERA_SERVER_TIMEOUT := 7.0
@@ -22,8 +28,10 @@ const _ANY_FORMAT := -2
 
 ## The heads in the picture, by their id: "position" (normalized to the mirrored
 ## picture, [0, 1]), "size" (in the heights of the picture), "rise" (how far
-## above standing, in head sizes) and "jumped" (the time of the last jump, in
-## seconds, or -1).
+## above standing, in head sizes), "jump_line" (the height which the head must
+## rise above for a jump, normalized to the picture; NAN before it is known),
+## "jumping" (whether the player is in a jump now) and "jumped" (the time of the
+## last jump, in seconds, or -1).
 var heads := {}
 
 ## Why there is no camera, for the players; empty while it runs or is searched.
@@ -81,19 +89,34 @@ func ids_from_left() -> Array[int]:
 
 
 func _on_appeared(id: int, position: Vector2, size: float) -> void:
-    heads[id] = {"position": position, "size": size, "rise": 0.0, "jumped": -1.0}
+    heads[id] = _new_head(position, size)
     head_appeared.emit(id, position)
 
 
-func _on_moved(id: int, position: Vector2, size: float, rise: float) -> void:
+func _on_moved(
+    id: int, position: Vector2, size: float, rise: float, jump_line: float, jumping: bool
+) -> void:
     if not heads.has(id):
-        heads[id] = {"position": position, "size": size, "rise": rise, "jumped": -1.0}
+        heads[id] = _new_head(position, size)
         head_appeared.emit(id, position)
     var head: Dictionary = heads[id]
     head["position"] = position
     head["size"] = size
     head["rise"] = rise
+    head["jump_line"] = jump_line
+    head["jumping"] = jumping
     head_moved.emit(id, position)
+
+
+static func _new_head(position: Vector2, size: float) -> Dictionary:
+    return {
+        "position": position,
+        "size": size,
+        "rise": 0.0,
+        "jump_line": NAN,
+        "jumping": false,
+        "jumped": -1.0,
+    }
 
 
 func _on_lost(id: int) -> void:
@@ -101,10 +124,10 @@ func _on_lost(id: int) -> void:
     head_lost.emit(id)
 
 
-func _on_jumped(id: int) -> void:
+func _on_jumped(id: int, strength: float) -> void:
     if heads.has(id):
         heads[id]["jumped"] = Time.get_ticks_msec() / 1000.0
-    head_jumped.emit(id)
+    head_jumped.emit(id, strength)
 
 
 func _find_camera() -> void:

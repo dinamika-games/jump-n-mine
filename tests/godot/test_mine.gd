@@ -87,6 +87,19 @@ func _check_hits() -> void:
     _check(mine.cell(5, Mine.SKY_ROWS + 1) == Mine.Cell.AIR, "four hits break the rock")
 
 
+func _check_weak_hits() -> void:
+    var mine := Mine.new(_plain(), 1)
+    _stand(mine, 5, Mine.SKY_ROWS)
+    for k in range(5):
+        mine.jump(0, 0.5)
+        _wait(mine, 1.0)
+    _check(mine.cell(5, Mine.SKY_ROWS) == Mine.Cell.DIRT, "five low jumps do not break the earth")
+    _check(mine.damage(5, Mine.SKY_ROWS) > 0.8, "low jumps crack the earth, too")
+    mine.jump(0, 0.5)
+    _wait(mine, 1.0)
+    _check(mine.cell(5, Mine.SKY_ROWS) == Mine.Cell.AIR, "six low jumps break the earth")
+
+
 func _check_side() -> void:
     var mine := Mine.new(_plain(), 1)
     var y := Mine.SKY_ROWS + 3
@@ -280,6 +293,7 @@ func _check_generation() -> void:
 
 func _run() -> void:
     _check_hits()
+    _check_weak_hits()
     _check_side()
     _check_explosion()
     _check_springs()

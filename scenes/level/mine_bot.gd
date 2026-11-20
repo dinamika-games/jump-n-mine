@@ -236,7 +236,7 @@ func _plan(start: Vector2i) -> void:
         # The next places: x, y and (the move | its cost << 4).
         var nexts: Array[Vector3i] = []
         if mine.is_breakable(x, y):
-            var hits := 1 if mine.cell(x, y) == Mine.Cell.GAS else mine.hits_left[below]
+            var hits := 1 if mine.cell(x, y) == Mine.Cell.GAS else int(ceil(mine.hits_left[below]))
             nexts.append(Vector3i(x, _floor_below(x, y + 1), Move.DIG | (hits * JUMP) << 4))
         for side in [-1, 1]:
             var nx: int = x + side

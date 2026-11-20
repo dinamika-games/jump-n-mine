@@ -28,17 +28,27 @@ public partial class HeadVision : Node
     [Signal]
     public delegate void HeadAppearedEventHandler(int id, Vector2 position, float size);
 
-    /// <summary>Signal that a head moved (position and size normalized to the picture).</summary>
+    /// <summary>
+    /// Signal that a head moved: its position and size normalized to the picture,
+    /// how high it is above standing (in head sizes), the line which it must rise
+    /// above for a jump (normalized to the picture; NaN before it is known), and
+    /// whether the player is in a jump now.
+    /// </summary>
     [Signal]
-    public delegate void HeadMovedEventHandler(int id, Vector2 position, float size, float rise);
+    public delegate void HeadMovedEventHandler(
+        int id, Vector2 position, float size, float rise, float jumpLine, bool jumping
+    );
 
     /// <summary>Signal that a head left the picture.</summary>
     [Signal]
     public delegate void HeadLostEventHandler(int id);
 
-    /// <summary>Signal that the player of the head jumped.</summary>
+    /// <summary>
+    /// Signal that the player of the head jumped and landed: the strength is 1
+    /// for a full jump and less for a low one (see <see cref="JumpGauge"/>).
+    /// </summary>
     [Signal]
-    public delegate void HeadJumpedEventHandler(int id);
+    public delegate void HeadJumpedEventHandler(int id, float strength);
 
     [Export]
     public int MaxHeads = 8;
@@ -97,14 +107,26 @@ public partial class HeadVision : Node
         public readonly Vector2 Position;
         public readonly float Size;
         public readonly float Rise;
+        public readonly float JumpLine;
+        public readonly bool Jumping;
 
-        public HeadEvent(EventKind kind, int id, Vector2 position, float size, float rise)
+        public HeadEvent(
+            EventKind kind,
+            int id,
+            Vector2 position,
+            float size,
+            float rise,
+            float jumpLine = float.NaN,
+            bool jumping = false
+        )
         {
             Kind = kind;
             Id = id;
             Position = position;
             Size = size;
             Rise = rise;
+            JumpLine = jumpLine;
+            Jumping = jumping;
         }
     }
 
@@ -399,12 +421,12 @@ public partial class HeadVision : Node
                 return null;
             }
 
-            HeadEvent Describe(EventKind kind, int id, float rise)
+            HeadEvent Describe(EventKind kind, int id, JumpGauge? gauge)
             {
                 var track = Find(id);
                 if (track == null)
                 {
-                    return new HeadEvent(kind, id, new Vector2(0.5f, 0.5f), 0f, rise);
+                    return new HeadEvent(kind, id, new Vector2(0.5f, 0.5f), 0f, 0f);
                 }
 
                 return new HeadEvent(
@@ -412,16 +434,18 @@ public partial class HeadVision : Node
                     id,
                     new Vector2(track.Position.X / cameraSize.X, track.Position.Y / cameraSize.Y),
                     track.Size / cameraSize.Y,
-                    rise
+                    gauge?.Rise ?? 0f,
+                    gauge == null ? float.NaN : gauge.JumpLine / cameraSize.Y,
+                    gauge?.IsJumping ?? false
                 );
             }
 
-            float Observe(int id)
+            JumpGauge? Observe(int id)
             {
                 var track = Find(id);
                 if (track == null)
                 {
-                    return 0f;
+                    return null;
                 }
 
                 if (!gauges.TryGetValue(id, out var gauge))
@@ -430,23 +454,24 @@ public partial class HeadVision : Node
                     gauges[id] = gauge;
                 }
 
-                if (gauge.Observe(timestamp, track.RawPosition.Y, track.RawSize))
+                float strength = gauge.Observe(timestamp, track.RawPosition.Y, track.RawSize);
+                if (strength > 0f)
                 {
-                    _events.Enqueue(new HeadEvent(EventKind.Jumped, id, Vector2.Zero, 0f, 0f));
+                    // NOTE (mristin):
+                    // The strength of the jump travels as its rise.
+                    _events.Enqueue(new HeadEvent(EventKind.Jumped, id, Vector2.Zero, 0f, strength));
                 }
 
-                return gauge.Rise;
+                return gauge;
             }
 
             tracker.OnAppeared = (id, _) =>
             {
-                float rise = Observe(id);
-                _events.Enqueue(Describe(EventKind.Appeared, id, rise));
+                _events.Enqueue(Describe(EventKind.Appeared, id, Observe(id)));
             };
             tracker.OnMoved = (id, _) =>
             {
-                float rise = Observe(id);
-                _events.Enqueue(Describe(EventKind.Moved, id, rise));
+                _events.Enqueue(Describe(EventKind.Moved, id, Observe(id)));
             };
             tracker.OnLost = id =>
             {
@@ -520,7 +545,9 @@ public partial class HeadVision : Node
                         headEvent.Id,
                         headEvent.Position,
                         headEvent.Size,
-                        headEvent.Rise
+                        headEvent.Rise,
+                        headEvent.JumpLine,
+                        headEvent.Jumping
                     );
                     break;
 
@@ -529,7 +556,8 @@ public partial class HeadVision : Node
                     break;
 
                 case EventKind.Jumped:
-                    EmitSignal(SignalName.HeadJumped, headEvent.Id);
+                    GD.Print($"The head {headEvent.Id} jumped (strength {headEvent.Rise:F1}).");
+                    EmitSignal(SignalName.HeadJumped, headEvent.Id, headEvent.Rise);
                     break;
             }
         }

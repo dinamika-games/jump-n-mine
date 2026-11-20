@@ -215,10 +215,10 @@ func _steer(_delta: float) -> void:
         mine.set_target(slot, dwarf.pos.x + direction * 1.0)
 
 
-func _on_head_jumped(id: int) -> void:
+func _on_head_jumped(id: int, strength: float) -> void:
     var slot := head_of_slot.find(id)
     if slot >= 0:
-        mine.jump(slot)
+        mine.jump(slot, strength)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

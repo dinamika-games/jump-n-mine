@@ -129,7 +129,8 @@ class Fire:
 var level: Dictionary
 var height := 0
 var cells := PackedByteArray()
-var hits_left := PackedByteArray()
+## How many hits each block still takes; a low jump hits less than a whole hit.
+var hits_left := PackedFloat32Array()
 var water := PackedFloat32Array()
 ## What is inside the blocks, by the index of the cell: "gem" or a booster.
 var items := {}
@@ -283,8 +284,9 @@ func set_target(player: int, x: float) -> void:
     dwarf.target_x = clampf(x, 0.5, WIDTH - 0.5)
 
 
-## The player jumped: the dwarf swings its pickaxe and hops.
-func jump(player: int) -> void:
+## The player jumped: the dwarf swings its pickaxe and hops. A low jump
+## (strength below 1) hits the block less.
+func jump(player: int, strength := 1.0) -> void:
     var dwarf := dwarf_of(player)
     if state != State.PLAYING or dwarf == null:
         return
@@ -300,7 +302,7 @@ func jump(player: int) -> void:
         if target.y <= int(floor(dwarf.pos.y - DWARF_HEIGHT * 0.5)):
             dwarf.swing_dir = Vector2i(signi(target.x - int(floor(dwarf.pos.x))), 0)
         dwarf.hits += 1
-        _hit(target, 2 if dwarf.has("gold_pick") else 1, dwarf)
+        _hit(target, strength * (2.0 if dwarf.has("gold_pick") else 1.0), dwarf)
     else:
         events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
 
@@ -556,15 +558,15 @@ func _hit_target(dwarf: Dwarf) -> Vector2i:
     return Vector2i(-1, -1)
 
 
-func _hit(target: Vector2i, strength: int, dwarf: Dwarf) -> void:
+func _hit(target: Vector2i, strength: float, dwarf: Dwarf) -> void:
     var i := index(target.x, target.y)
     var kind := cells[i]
     if kind == Cell.GAS:
         _release(i, FUSE_TIME)
         return
-    var left := maxi(0, hits_left[i] - strength)
+    var left := maxf(0.0, hits_left[i] - strength)
     hits_left[i] = left
-    if left > 0:
+    if left > 0.01:
         (
             events
             . append(

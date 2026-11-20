@@ -116,7 +116,42 @@ func _draw_camera() -> void:
         var top := rect.position + position * rect.size - Vector2(0, size * 0.5)
         var slot := int(dwarf_of_head.get(id, -1))
         var brim := Dwarves.color(slot) if slot >= 0 else Color(0.8, 0.8, 0.8)
+        var line: float = head.get("jump_line", NAN)
+        if not is_nan(line):
+            var center_x := rect.position.x + position.x * rect.size.x
+            Art.jump_line(
+                self,
+                rect.position.y + line * rect.size.y,
+                maxf(rect.position.x + 4.0, center_x - size * 1.4),
+                minf(rect.end.x - 4.0, center_x + size * 1.4),
+                bool(head.get("jumping", false)),
+                maxf(4.0, rect.size.y * 0.018)
+            )
         Art.miner_hat(self, top, size, brim, _time + id)
+        _draw_jump_meter(head, top + Vector2(size * 0.75, size * 0.2), size, brim)
+
+
+## A bar beside the head which fills as the head rises, and flashes when a jump
+## counts, so that the players see how high they must jump.
+func _draw_jump_meter(head: Dictionary, at: Vector2, size: float, color: Color) -> void:
+    var vision := get_node("/root/Vision")
+    var rise: float = head.get("rise", 0.0)
+    var share := clampf(rise / vision.JUMP_HEIGHT, 0.0, 1.0)
+    var since := Time.get_ticks_msec() / 1000.0 - float(head.get("jumped", -10.0))
+    var bar := Rect2(at, Vector2(maxf(8.0, size * 0.12), size * 0.9))
+    draw_rect(bar.grow(2.0), Art.OUTLINE)
+    draw_rect(bar, Color(0.2, 0.15, 0.2, 0.8))
+    # A tick where a low jump (a weaker hit) begins.
+    var low: float = vision.LOW_JUMP_HEIGHT / vision.JUMP_HEIGHT
+    var tick_y := bar.end.y - bar.size.y * low
+    draw_line(
+        Vector2(bar.position.x - 4.0, tick_y), Vector2(bar.end.x + 4.0, tick_y), Art.OUTLINE, 3.0
+    )
+    var fill := bar.size.y * share
+    var fill_color := color if since > 0.4 else Color("#ffe65a")
+    draw_rect(Rect2(bar.position.x, bar.end.y - fill, bar.size.x, fill), fill_color)
+    if since <= 0.4:
+        draw_rect(bar.grow(5.0), Color(1.0, 0.9, 0.4, 0.5 * (1.0 - since / 0.4)), false, 4.0)
 
 
 func _text(text: String, at: Vector2, font_size: int, color: Color) -> void:

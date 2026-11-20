@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 Session="*res://scenes/session/session.gd"
 Vision="*res://scenes/vision/vision.tscn"
 Sounds="*res://scenes/sound/sounds.gd"
+QuitGuard="*res://scenes/quit_guard/quit_guard.gd"
 
 [display]
 

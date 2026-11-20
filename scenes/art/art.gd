@@ -148,6 +148,34 @@ static func miner_hat(
     canvas.draw_circle(lamp, w * 0.045, Color.WHITE)
 
 
+## The line which a player's head must rise above for a jump, in the camera
+## picture: light blue and dashed with an arrow up, gold while she jumps. It
+## spans the part of the picture around her head (from left to right, in
+## pixels); thick, so that it shows on the overlay.
+static func jump_line(
+    canvas: CanvasItem, y: float, left: float, right: float, jumping: bool, thickness: float
+) -> void:
+    var color := Color("#ffcf3a") if jumping else Color("#8fd8ff")
+    var dash := thickness * 3.0
+    var arrow := thickness * 3.0
+    var x := left
+    while x < right - arrow * 1.2:
+        var end := minf(x + dash, right - arrow * 1.2)
+        canvas.draw_line(Vector2(x, y), Vector2(end, y), OUTLINE, thickness * 1.8)
+        canvas.draw_line(Vector2(x, y), Vector2(end, y), color, thickness)
+        x += dash * 1.7
+    var tip := PackedVector2Array(
+        [
+            Vector2(right - arrow * 1.1, y + arrow * 0.3),
+            Vector2(right, y + arrow * 0.3),
+            Vector2(right - arrow * 0.55, y - arrow * 0.8),
+        ]
+    )
+    canvas.draw_colored_polygon(tip, color)
+    tip.append(tip[0])
+    canvas.draw_polyline(tip, OUTLINE, maxf(1.5, thickness * 0.4))
+
+
 ## An iron gate in the floor, closed: bars over the dark.
 static func gate(canvas: CanvasItem, rect: Rect2) -> void:
     canvas.draw_rect(rect, Color("#1c1820"))

@@ -127,7 +127,7 @@ func _process(delta: float) -> void:
     queue_redraw()
 
 
-func _on_head_jumped(id: int) -> void:
+func _on_head_jumped(id: int, _strength: float) -> void:
     if not visible or not is_visible_in_tree():
         return
     var pointing: Dictionary = _pointing.get(id, {})
@@ -250,6 +250,17 @@ static func draw_backdrop(canvas: CanvasItem, area: Vector2) -> void:
         var position: Vector2 = head["position"]
         var size: float = head["size"] * picture.size.y
         var top := picture.position + position * picture.size - Vector2(0, size * 0.5)
+        var line: float = head.get("jump_line", NAN)
+        if not is_nan(line):
+            var center_x := picture.position.x + position.x * picture.size.x
+            Art.jump_line(
+                canvas,
+                picture.position.y + line * picture.size.y,
+                maxf(0.0, center_x - size * 1.4),
+                minf(area.x, center_x + size * 1.4),
+                bool(head.get("jumping", false)),
+                10.0
+            )
         Art.miner_hat(canvas, top, size, Dwarves.color(rank), time + rank)
 
 
