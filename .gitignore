@@ -39,3 +39,6 @@ tests/**/obj/
 
 # The downloads of dev/sounds/cut_sounds.py
 /.cache/
+
+# Python
+__pycache__/
