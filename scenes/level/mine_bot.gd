@@ -14,6 +14,11 @@ extends RefCounted
 ## falls, if there is no floor), or hops onto a step of one block. The cost is
 ## in jumps. The bot digs to the gems on the way, hammers the open springs shut
 ## when the water rises, and else goes as deep as it can.
+##
+## A bot for the slot [constant Mine.RIVAL] plays the evil miner of Queen
+## Treacher: he jumps as often as [member MineRival.period] says, cares
+## neither for the gems nor for the springs, and waits on a closed gate until
+## he pried a bar out of it.
 
 enum Move { START, DIG, WALK, HOP }
 
@@ -35,6 +40,11 @@ const DEPTH_REWARD := 100000
 
 ## The bot keeps to its goal unless another is better by this much.
 const GOAL_STICKINESS := 120
+
+## The evil miner digs a shaft of his own beside the dwarves: a place in the
+## column of a dwarf costs him this much more (else he would drop down their
+## shafts and hide behind them).
+const AWAY_FROM_DWARVES := 30 * JUMP
 
 var mine: Mine
 var player := 0
@@ -63,6 +73,12 @@ func _init(a_mine: Mine, a_player: int, a_jump_period := 1.6) -> void:
 func act(dt: float) -> void:
     _since_jump += dt
     _replan -= dt
+    if player == Mine.RIVAL:
+        jump_period = mine.rivalry.period
+        var rival := mine.dwarf_of(player)
+        if mine.rivalry.waits and rival != null:
+            _step_aside(rival)
+            return
     var dwarf: Mine.Dwarf = mine.dwarf_of(player)
     if dwarf == null:
         return
@@ -98,6 +114,20 @@ func act(dt: float) -> void:
                 _jump()
 
 
+## The evil miner waits beside the dwarves, not on them: he steps two blocks
+## away from a dwarf close to him.
+func _step_aside(rival: Mine.Dwarf) -> void:
+    var x := floorf(rival.pos.x) + 0.5
+    for dwarf in mine.dwarves:
+        var offset := dwarf.pos - rival.pos
+        if absf(offset.x) < 1.6 and absf(offset.y) < 2.0:
+            var side := -1.0 if offset.x >= 0.0 else 1.0
+            if x + side * 2.0 < 1.0 or x + side * 2.0 > Mine.WIDTH - 1.0:
+                side = -side
+            x = floorf(dwarf.pos.x) + 0.5 + side * 2.0
+    mine.set_target(player, x)
+
+
 ## On the floor of a puzzle hall: stand on a plate until the gate opens, then
 ## drop through the gate. Return whether the bot is busy with a puzzle.
 func _solve_puzzle(here: Vector2i) -> bool:
@@ -107,6 +137,15 @@ func _solve_puzzle(here: Vector2i) -> bool:
             puzzle = each
     if puzzle == null:
         return false
+    if player == Mine.RIVAL and not puzzle.open:
+        if puzzle.gate.is_empty():
+            return false
+        var nearest := puzzle.gate[0]
+        for cell in puzzle.gate:
+            if absi(cell.x - here.x) < absi(nearest.x - here.x):
+                nearest = cell
+        mine.set_target(player, nearest.x + 0.5)
+        return true
     if puzzle.open:
         var best := puzzle.gate[0]
         for cell in puzzle.gate:
@@ -199,6 +238,10 @@ func _plan(start: Vector2i) -> void:
     var spring_key := -1
     var spring_cost := SPRING_REACH
     var flood := mine.flood_level()
+    var avoid := {}
+    if player == Mine.RIVAL:
+        for dwarf in mine.dwarves:
+            avoid[int(floor(dwarf.pos.x))] = true
 
     while not heap.is_empty():
         var packed := _pop(heap)
@@ -215,10 +258,11 @@ func _plan(start: Vector2i) -> void:
         var below := mine.index(x, y)
         var body := mine.index(x, y - 1)
         var gem: bool = mine.items.get(below, "") == "gem" or mine.loose.get(body, "") == "gem"
+        gem = gem and player != Mine.RIVAL
         if gem and d < gem_cost:
             gem_cost = d
             gem_key = key
-        if flood > 0.3 and d < spring_cost:
+        if flood > 0.3 and d < spring_cost and player != Mine.RIVAL:
             for side in [-1, 1]:
                 if mine.cell(x + side, y - 1) == Mine.Cell.SPRING:
                     spring_cost = d
@@ -251,6 +295,8 @@ func _plan(start: Vector2i) -> void:
                 continue
             var nkey := (n.y - top) * Mine.WIDTH + n.x
             var nd: int = d + (n.z >> 4)
+            if avoid.has(n.x):
+                nd += AWAY_FROM_DWARVES
             if nd < dist[nkey]:
                 dist[nkey] = nd
                 previous[nkey] = key

@@ -2,7 +2,8 @@ class_name Hud
 extends Control
 
 ## The bar at the top of the level (the name of the level, the gems, how deep
-## the dwarves came and how full of water the mine is) and the tips. The camera
+## the dwarves and the evil miner came and how full of water the mine is), the
+## boosters which the dwarves brought along, and the tips. The camera
 ## picture lies over the mine (see [CameraOverlay]).
 
 var mine: Mine
@@ -51,6 +52,17 @@ func _draw() -> void:
         Rect2(bar.position, Vector2(bar.size.x * mine.progress(), bar.size.y)), Color("#d99a52")
     )
     Art.chest(self, bar.end + Vector2(30, 6), 44.0, _time)
+    if mine.rival != null:
+        var share := clampf(
+            (mine.rival.pos.y - Mine.SKY_ROWS) / float(mine.chest.y - Mine.SKY_ROWS), 0.0, 1.0
+        )
+        Art.dwarf(
+            self,
+            Vector2(bar.position.x + bar.size.x * share, bar.end.y + 4),
+            46.0,
+            Mine.RIVAL,
+            {"facing": -1}
+        )
     Art.dwarf(
         self, Vector2(bar.position.x + bar.size.x * mine.progress(), bar.end.y + 4), 46.0, 0, {}
     )
@@ -71,6 +83,8 @@ func _draw() -> void:
             PackedVector2Array([Vector2(1406, 40), Vector2(1434, 40), Vector2(1420, 18)]),
             Color("#3f8ee8")
         )
+
+    _draw_boosters()
 
     # NOTE (mristin):
     # Why there is no camera picture, if there is none (see [CameraOverlay]).
@@ -99,3 +113,25 @@ func _text(text: String, at: Vector2, font_size: int, color: Color) -> void:
         _font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 8, Color(0, 0, 0, color.a)
     )
     draw_string(_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+
+## The boosters which the dwarves brought along, in the bottom left corner: how
+## many are left of each, and a bar for the one which helps now.
+func _draw_boosters() -> void:
+    var area := get_viewport_rect().size
+    var x := 24.0
+    for kind in Mine.BOOSTERS:
+        var left := int(mine.charges.get(kind, 0))
+        var on := MineBoosters.has(mine, kind)
+        if left <= 0 and not on:
+            continue
+        var center := Vector2(x + 34, area.y - 52)
+        draw_circle(center, 38.0, Color(0.1, 0.06, 0.08, 0.75))
+        if on:
+            draw_circle(center, 38.0, Color(1, 0.9, 0.4, 0.3 + 0.15 * sin(_time * 6.0)))
+        Art.booster(self, center, 28.0, kind)
+        _text("%d" % left, center + Vector2(24, 34), 30, Color.WHITE)
+        if on:
+            var share := float(mine.active[kind]) / float(Mine.BOOSTER_TIME.get(kind, 20.0))
+            draw_rect(Rect2(center + Vector2(-34, 44), Vector2(68 * share, 6)), Color("#ffe27a"))
+        x += 96.0

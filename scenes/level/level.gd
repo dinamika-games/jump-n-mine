@@ -3,7 +3,9 @@ extends Node2D
 
 ## Play a level of [LevelCatalog]: the players step left and right to walk
 ## their dwarves and jump to swing the pickaxes, until a dwarf finds the
-## treasure at the bottom, or the water floods the mine and they start again.
+## treasure at the bottom, or the water floods the mine, or the evil miner of
+## Queen Treacher takes the treasure first, and they start again. The dwarves
+## take the boosters bought in the shop along, and keep the gems they gathered.
 ##
 ## The players come and go at will: a head which appears
 ## in the camera picture gets a dwarf of a free color (a slot), let down into
@@ -51,6 +53,8 @@ var overlay: CameraOverlay
 ## The head of each slot: its id, or -1.
 var head_of_slot: Array[int] = [-1, -1, -1, -1]
 var bots: Array[MineBot] = []
+## The bot of the evil miner, or null in the levels without him.
+var rival_bot: MineBot = null
 
 ## How long the dwarf of each slot waits for its head already, in seconds.
 var _waiting: Array[float] = [0.0, 0.0, 0.0, 0.0]
@@ -64,11 +68,15 @@ var _end_in := -1.0
 var _menu: CardMenu = null
 var _layer := CanvasLayer.new()
 var _recorder: Recorder = null
+## Whether the gems of the level went into the purse already.
+var _banked := false
 
 
 func _ready() -> void:
     level = LevelCatalog.LEVELS[Flow.level_index]
-    mine = Mine.new(level, 0)
+    mine = Mine.new(level, 0, get_node("/root/Session").purse.boosters)
+    if bool(level.get("rival", false)):
+        rival_bot = MineBot.new(mine, Mine.RIVAL)
     view = MineView.new(mine, int(level["world"]))
     add_child(view)
     add_child(_layer)
@@ -129,6 +137,8 @@ func _physics_process(delta: float) -> void:
     _steer(delta)
     for bot in bots:
         bot.act(delta)
+    if rival_bot != null:
+        rival_bot.act(delta)
     mine.step(delta)
     var events := mine.take_events()
     if _recorder != null:
@@ -152,6 +162,7 @@ func _physics_process(delta: float) -> void:
         _end_in = END_DELAY
         if mine.state == Mine.State.WON:
             get_node("/root/Session").finish_level(level["id"], mine.stars())
+        _bank()
     if _end_in >= 0.0:
         _end_in -= delta
         if _end_in < 0.0:
@@ -171,7 +182,17 @@ func _loops() -> void:
     sounds.loop("fuse", playing and not mine.fuses.is_empty())
 
 
+## Put the gems which the dwarves gathered into the purse, once: at the end of
+## the level, or when the players leave it.
+func _bank() -> void:
+    if _banked:
+        return
+    _banked = true
+    get_node("/root/Session").purse.add_gems(mine.gems)
+
+
 func _exit_tree() -> void:
+    _bank()
     if _recorder != null:
         _recorder.close()
     get_node("/root/Sounds").stop_loops()
@@ -339,10 +360,22 @@ func _sound(events: Array[Dictionary]) -> void:
                 get_node("/root/Sounds").play("dizzy")
             "pump":
                 get_node("/root/Sounds").play("booster")
-            "won", "flooded":
+            "won", "flooded", "lost", "mole", "rival":
                 get_node("/root/Sounds").play(type)
-            "gas", "joined":
+            "gas", "joined", "mole_dig", "mole_gone":
                 pass
+            "booster":
+                get_node("/root/Session").purse.use_booster(str(event["kind"]))
+                get_node("/root/Sounds").play("booster")
+            "mole_cry":
+                get_node("/root/Sounds").play("sniff")
+            "knockout":
+                get_node("/root/Sounds").play("bonk")
+            "bonked":
+                get_node("/root/Sounds").play("bonk", 0.8)
+                get_node("/root/Sounds").play("dizzy")
+            "pried":
+                get_node("/root/Sounds").play("hit_hard", 0.7)
             "plate":
                 get_node("/root/Sounds").play("click")
             "gate_open":
@@ -364,7 +397,12 @@ func _tip_for(type: String) -> void:
         "plate": "Stand on the stone plates to open the iron gate!",
         "gate_open": "The gate is open! Quick, drop through!",
         "splash": "Water! Hit the blue spring in the wall to seal it.",
-        "booster": "A booster! It helps you for a while.",
+        "booster": "A booster from the shop helps you!",
+        "mole": "A mole! It digs for you. Don't hit it!",
+        "mole_cry": "Oh no, the mole cries! Moles are friends.",
+        "rival": "Queen Treacher's evil miner! Be faster, and bonk him!",
+        "bonked": "The evil miner hit you! Hit him back with your pickaxe!",
+        "pried": "The evil miner broke a bar of the gate!",
         "rope": "A rope lets the dwarf down to the friends.",
     }
     if tips.has(type) and not _tips_shown.has(type):
@@ -379,20 +417,30 @@ func _show_end() -> void:
     _menu = CardMenu.new()
     _menu.background = false
     var cards: Array[Dictionary] = []
+    var purse := "+%d gems, %d in the purse" % [mine.gems, get_node("/root/Session").purse.gems]
     if mine.state == Mine.State.WON:
         _menu.title = "Treasure found!"
-        _menu.subtitle = "%d of %d gems, %d stars" % [mine.gems, mine.gems_total, mine.stars()]
+        _menu.subtitle = (
+            "%d of %d gems, %d stars. %s" % [mine.gems, mine.gems_total, mine.stars(), purse]
+        )
         if Flow.level_index + 1 < LevelCatalog.LEVELS.size():
             cards.append(
                 {"id": "next", "title": "Next level", "icon": "next", "color": Color("#b8452f")}
             )
         cards.append({"id": "again", "title": "Again", "icon": "again", "color": Color("#3d5a8a")})
-    else:
-        _menu.title = "The mine is flooded!"
-        _menu.subtitle = "The dwarves climbed out, wet but happy. Let's try again!"
+    elif mine.state == Mine.State.LOST:
+        _menu.title = "The evil miner was faster!"
+        _menu.subtitle = "Queen Treacher's miner grabbed the treasure. %s" % purse
         cards.append(
             {"id": "again", "title": "Try again", "icon": "again", "color": Color("#b8452f")}
         )
+    else:
+        _menu.title = "The mine is flooded!"
+        _menu.subtitle = "The dwarves climbed out, wet but happy. %s" % purse
+        cards.append(
+            {"id": "again", "title": "Try again", "icon": "again", "color": Color("#b8452f")}
+        )
+    cards.append({"id": "shop", "title": "Shop", "icon": "shop", "color": Color("#8a6a1e")})
     cards.append({"id": "levels", "title": "Levels", "icon": "levels", "color": Color("#5a3d6e")})
     _menu.set_cards(cards)
     _menu.chosen.connect(_on_menu)
@@ -440,3 +488,9 @@ func _on_menu(id: String) -> void:
         "levels":
             Flow.world = int(level["world"])
             Flow.go(get_tree(), Flow.LEVEL_SELECT)
+        "shop":
+            Flow.world = int(level["world"])
+            var next := Flow.level_index
+            if mine.state == Mine.State.WON and next + 1 < LevelCatalog.LEVELS.size():
+                next += 1
+            Flow.open_shop(get_tree(), next)

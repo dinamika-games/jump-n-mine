@@ -1,7 +1,8 @@
 extends Node
 
 ## The expeditions (the sessions of the game): an expedition is one playthrough
-## with its name and the stars of each level. The players come and go at will,
+## with its name, the stars of each level, the gems in its purse, the boosters
+## bought for the next levels and its house (see [Economy]). The players come and go at will,
 ## so an expedition does not keep who plays.
 ##
 ## Every expedition is JSON in [code]user://saves/<id>.json[/code], with a format
@@ -13,8 +14,9 @@ extends Node
 ## settings in another file and the expeditions in
 ## [code]user://other_saves/[/code] (the tests do so, to leave yours alone).
 
-## The version of the format of the saves.
-const FORMAT := 1
+## The version of the format of the saves: 2 added the gems, the boosters and
+## the house (a save of the format 1 has none of them).
+const FORMAT := 2
 
 ## The longest name of an expedition.
 const MAX_SESSION_NAME := 24
@@ -29,12 +31,20 @@ var stars := {}
 ## Whether the players saw how to play.
 var has_seen_instruction := false
 
+## The gems of the expedition, its boosters and its house; it saves the
+## expedition whenever it changes.
+var purse: Purse = null
+
 ## Whether the players chose the expedition since the game started: Play asks
 ## once each start.
 var chosen_this_run := false
 
 ## The settings which the tests chose, see [method use_settings].
 var _settings_override := ""
+
+
+func _init() -> void:
+    purse = Purse.new(_save)
 
 
 func _ready() -> void:
@@ -223,6 +233,10 @@ func to_data() -> Dictionary:
         {
             "stars": stars,
             "instruction_seen": has_seen_instruction,
+            "gems": purse.gems,
+            "gems_earned": purse.gems_earned,
+            "boosters": purse.boosters,
+            "house": purse.house,
         },
     }
 
@@ -234,6 +248,7 @@ func _from_data(data: Dictionary) -> void:
     for level in saved_stars:
         stars[level] = int(saved_stars[level])
     has_seen_instruction = bool(progress.get("instruction_seen", false))
+    purse.read_from(progress)
 
 
 ## Whether the level (by its index in [constant LevelCatalog.LEVELS]) is open:
@@ -264,6 +279,23 @@ func total_stars() -> int:
 func finish_level(level_id: String, won: int) -> void:
     stars[level_id] = maxi(int(stars.get(level_id, 0)), won)
     _save()
+
+
+## Whether the players saw the story of the game on this computer (it shows
+## before the first Play; it belongs to the settings, not to an expedition).
+func has_seen_story() -> bool:
+    var settings := ConfigFile.new()
+    settings.load(settings_path())
+    return bool(settings.get_value("general", "story_seen", false))
+
+
+## Remember that the players saw the story.
+func saw_story() -> void:
+    var settings := ConfigFile.new()
+    settings.load(settings_path())
+    settings.set_value("general", "story_seen", true)
+    DirAccess.make_dir_recursive_absolute(settings_path().get_base_dir())
+    settings.save(settings_path())
 
 
 ## Remember that the players saw how to play, and save.

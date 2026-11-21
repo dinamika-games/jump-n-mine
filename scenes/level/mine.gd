@@ -2,7 +2,8 @@ class_name Mine
 extends RefCounted
 
 ## The mine of a level and everything that happens in it: the blocks, the
-## dwarves, the water, the gas pockets, the dragons and their fire.
+## dwarves, the water, the gas pockets, the dragons and their fire, the moles,
+## and the evil miner of Queen Treacher who races the dwarves to the treasure.
 ##
 ## The mine draws nothing and reads no input, so that the tests can play a
 ## level headless and fast (see tests/godot/test_levels.gd): the level scene
@@ -16,7 +17,7 @@ extends RefCounted
 
 enum Cell { AIR, DIRT, ROCK, BEDROCK, GAS, SPRING, SEALED, GATE, PLATE }
 
-enum State { PLAYING, WON, FLOODED }
+enum State { PLAYING, WON, FLOODED, LOST }
 
 ## At most this many dwarves dig together.
 const MAX_DWARVES := 4
@@ -41,11 +42,20 @@ const HITS := {Cell.DIRT: 3, Cell.ROCK: 4, Cell.GAS: 1, Cell.SPRING: 3}
 ## A pickaxe swung to the side reaches this far beyond the dwarf, in cells.
 const SIDE_REACH := 0.35
 
-## The kinds of the boosters (see DESIGN.md, "Boosters").
-const BOOSTERS := ["gold_pick", "helmet", "pump", "boots"]
+## The kinds of the boosters, which the players buy with their gems after a
+## level (see [Shop]) and which start by themselves when they help (see
+## [MineBoosters]).
+const BOOSTERS := ["gold_pick", "helmet", "boots", "pump"]
 
-## How long a booster lasts on a dwarf, in seconds.
+## How long a booster lasts, in seconds; it helps all the players' dwarves.
 const BOOSTER_TIME := {"gold_pick": 20.0, "helmet": 30.0, "boots": 25.0}
+
+## The pump starts by itself when the mine is this full of water.
+const PUMP_AT := 0.6
+
+## The slot of the evil miner of Queen Treacher (see [member rival]); the slots
+## 0 to 3 are the players'.
+const RIVAL := 4
 
 ## The gravity, in cells per second squared.
 const GRAVITY := 34.0
@@ -111,14 +121,11 @@ class Dwarf:
     var swing := 0.0
     ## Where the pickaxe swung last: (1, 0), (-1, 0) or (0, 1).
     var swing_dir := Vector2i(0, 1)
-    ## The boosters on the dwarf, by kind: how many seconds they still last.
-    var boosters := {}
     var above_screen := 0.0
+    ## The dwarf sees stars (knocked out by a pickaxe) for so many more seconds.
+    var stars := 0.0
     var gems := 0
     var hits := 0
-
-    func has(kind: String) -> bool:
-        return float(boosters.get(kind, 0.0)) > 0.0
 
 
 class Dragon:
@@ -153,6 +160,18 @@ var loose := {}
 ## seconds left until they explode.
 var fuses := {}
 var dwarves: Array[Dwarf] = []
+## The evil miner of Queen Treacher, or null (before he arrives, and in the
+## levels without him, see [MineRival]). He is not one of [member dwarves]: the
+## screen does not follow him, he presses no plates and takes no gems.
+var rival: Dwarf = null
+## How the evil miner arrives, paces himself and fights (see [MineRival]).
+var rivalry := MineRival.new()
+## The moles (see [MineMoles]).
+var moles := MineMoles.new()
+## The boosters which the players brought along, by kind: how many.
+var charges := {}
+## The boosters which help now, by kind: how many seconds they still last.
+var active := {}
 var dragons: Array[Dragon] = []
 var fires: Array[Fire] = []
 var chest := Vector2i.ZERO
@@ -174,29 +193,36 @@ var puzzles := MinePuzzles.new()
 var springs: Array[int] = []
 ## The water flows from the left to the right in the next step (see [MineWater]).
 var water_left_to_right := true
+## The dice of the dragons, and when the next one comes (see [MineDragons]).
+var rng := RandomNumberGenerator.new()
+var next_dragon := INF
 
 ## Where the last dwarf left the mine, for the next to come; (-1, -1) before.
 var _left_at := Vector2(-1, -1)
-var _rng := RandomNumberGenerator.new()
-var _next_dragon := INF
 var _water_clock := 0.0
 
 
 ## Make the mine of the level, with the dwarves of the first slots (e.g., for
-## the bots); the players' dwarves come and go with [method add_dwarf] and
-## [method remove_dwarf].
-func _init(a_level: Dictionary, initial_dwarves := 0) -> void:
+## the bots), and the boosters which the players brought (by kind, how many);
+## the players' dwarves come and go with [method add_dwarf] and [method
+## remove_dwarf].
+func _init(a_level: Dictionary, initial_dwarves := 0, a_charges := {}) -> void:
     level = a_level
+    charges = a_charges.duplicate()
     _generate()
-    _rng.seed = int(level.get("seed", 0)) * 7 + 3
-    _schedule_dragon()
+    rng.seed = int(level.get("seed", 0)) * 7 + 3
+    MineDragons.schedule(self)
+    moles.start(self)
     for slot in range(clampi(initial_dwarves, 0, MAX_DWARVES)):
         add_dwarf(slot)
     events.clear()
 
 
-## The dwarf of the slot, or null if it is not in the mine.
+## The dwarf of the slot (or the evil miner, [constant RIVAL]), or null if it is
+## not in the mine.
 func dwarf_of(slot: int) -> Dwarf:
+    if slot == RIVAL:
+        return rival
     for each in dwarves:
         if each.index == slot:
             return each
@@ -224,6 +250,7 @@ func add_dwarf(slot: int) -> Dwarf:
     dwarf.target_x = dwarf.pos.x
     dwarves.append(dwarf)
     events.append({"type": "joined", "pos": dwarf.pos, "dwarf": slot})
+    rivalry.dwarf_came(self)
     return dwarf
 
 
@@ -309,20 +336,21 @@ func jump(player: int, strength := 1.0) -> void:
         events.append({"type": "blub", "pos": dwarf.pos, "dwarf": dwarf.index})
 
     dwarf.swing = 0.35
-    var target := _hit_target(dwarf)
-    if target.x >= 0:
-        dwarf.swing_dir = Vector2i(0, 1)
-        if target.y <= int(floor(dwarf.pos.y - DWARF_HEIGHT * 0.5)):
-            dwarf.swing_dir = Vector2i(signi(target.x - int(floor(dwarf.pos.x))), 0)
-        dwarf.hits += 1
-        _hit(target, strength * (2.0 if dwarf.has("gold_pick") else 1.0), dwarf)
-    else:
-        events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
+    dwarf.swing_dir = Vector2i(0, 1)
+    if not _strike(dwarf, 0):
+        var target := _hit_target(dwarf)
+        if target.x >= 0:
+            if target.y <= int(floor(dwarf.pos.y - DWARF_HEIGHT * 0.5)):
+                dwarf.swing_dir = Vector2i(signi(target.x - int(floor(dwarf.pos.x))), 0)
+            dwarf.hits += 1
+            hit_block(target, strength * MineBoosters.power(self, dwarf, target), dwarf)
+        else:
+            events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
 
     if dwarf.on_ground:
         var hop := BOB
         if _hops(dwarf):
-            hop = HOP_BOOTS if dwarf.has("boots") else HOP
+            hop = HOP_BOOTS if MineBoosters.boots(self, dwarf) else HOP
         dwarf.vel.y = -sqrt(2.0 * GRAVITY * hop)
         dwarf.on_ground = false
 
@@ -356,12 +384,25 @@ func swing_side(player: int, side: int, strength := 1.0) -> void:
     dwarf.swing = 0.35
     dwarf.facing = signi(side)
     dwarf.swing_dir = Vector2i(signi(side), 0)
+    if _strike(dwarf, signi(side)):
+        return
     var target := _side_target(dwarf, signi(side))
     if target.x >= 0:
         dwarf.hits += 1
-        _hit(target, strength * (2.0 if dwarf.has("gold_pick") else 1.0), dwarf)
+        hit_block(target, strength * MineBoosters.power(self, dwarf, target), dwarf)
     else:
         events.append({"type": "swing", "pos": dwarf.pos, "dwarf": dwarf.index})
+
+
+## The pickaxe of the dwarf swung down (side 0) or to the side (-1 or 1): it
+## hits the evil miner or a mole if one is in its way, before any block. Return
+## whether it hit one.
+func _strike(dwarf: Dwarf, side: int) -> bool:
+    if dwarf == rival:
+        return false
+    var body := dwarf.pos - Vector2(0, DWARF_HEIGHT * 0.5)
+    var point := body + (Vector2(side * 0.8, 0.0) if side != 0 else Vector2(0.0, 0.9))
+    return rivalry.strike(self, dwarf, point, body, side) or moles.strike(self, dwarf, point, body)
 
 
 ## Take what happened since the last call, and forget it.
@@ -401,13 +442,20 @@ func step(dt: float) -> void:
         return
     time += dt
 
+    for kind in active.keys():
+        active[kind] = maxf(0.0, float(active[kind]) - dt)
+    if flood_level() >= PUMP_AT:
+        MineBoosters.use(self, "pump")
+
     for dwarf in dwarves:
-        _move(dwarf, dt)
+        move_dwarf(dwarf, dt)
+    rivalry.update(self, dt)
+    moles.update(self, dt)
 
     puzzles.update(self, dt)
     _burn_fuses(dt)
-    _fly_dragons(dt)
-    _fall_fires(dt)
+    MineDragons.fly(self, dt)
+    MineDragons.fall(self, dt)
 
     _water_clock += dt
     var water_step := 1.0 / WATER_RATE
@@ -544,17 +592,6 @@ func _generate() -> void:
                 gems_total += 1
                 break
 
-    var boosters: Dictionary = level.get("boosters", {})
-    for kind in boosters:
-        for b in range(int(boosters[kind])):
-            for attempt in range(40):
-                var bx := rng.randi_range(1, WIDTH - 2)
-                var by := rng.randi_range(top + 2, bottom - 3)
-                var i := index(bx, by)
-                if _is_earth(bx, by) and not items.has(i):
-                    items[i] = kind
-                    break
-
     for spring in level.get("springs", []):
         var sx := 0 if spring["side"] == "left" else WIDTH - 1
         var sy := top + int(float(spring["at"]) * depth)
@@ -625,7 +662,9 @@ func _side_target(dwarf: Dwarf, side: int) -> Vector2i:
     return Vector2i(-1, -1)
 
 
-func _hit(target: Vector2i, strength: float, dwarf: Dwarf) -> void:
+## Hit the block of the target with the strength (in hits; by the dwarf, or by
+## null for the fire).
+func hit_block(target: Vector2i, strength: float, dwarf: Dwarf) -> void:
     var i := index(target.x, target.y)
     var kind := cells[i]
     if kind == Cell.GAS:
@@ -663,12 +702,16 @@ func _break(target: Vector2i, dwarf: Dwarf) -> void:
     fuses.erase(i)
     events.append({"type": "break", "pos": center, "kind": kind})
     if items.has(i):
-        _collect(str(items[i]), center, dwarf)
+        if dwarf != null and dwarf == rival:
+            # NOTE (mristin):
+            # The evil miner takes no gems: they fall out for the dwarves.
+            loose[i] = items[i]
+        else:
+            _collect(str(items[i]), center, dwarf)
         items.erase(i)
 
 
-## The dwarf (or, from an explosion, the nearest dwarf) takes the gem or the
-## booster.
+## The dwarf (or, from an explosion, the nearest dwarf) takes the gem.
 func _collect(kind: String, at: Vector2, dwarf: Dwarf) -> void:
     if dwarf == null:
         var best := INF
@@ -682,22 +725,12 @@ func _collect(kind: String, at: Vector2, dwarf: Dwarf) -> void:
         if dwarf != null:
             dwarf.gems += 1
         events.append({"type": "gem", "pos": at, "dwarf": dwarf.index if dwarf != null else -1})
-        return
-    if kind == "pump":
-        var removed := water_total * 0.7
-        for k in range(water.size()):
-            water[k] *= 0.3
-        water_total -= removed
-        events.append({"type": "pump", "pos": at})
-        return
-    if dwarf != null:
-        dwarf.boosters[kind] = float(BOOSTER_TIME.get(kind, 20.0))
-    events.append({"type": "booster", "pos": at, "kind": kind, "dwarf": dwarf.index})
 
 
-func _move(dwarf: Dwarf, dt: float) -> void:
-    for kind in dwarf.boosters.keys():
-        dwarf.boosters[kind] = maxf(0.0, float(dwarf.boosters[kind]) - dt)
+## Move the dwarf (or the evil miner) for dt seconds: walk towards its target,
+## fall, and gather the loose gems.
+func move_dwarf(dwarf: Dwarf, dt: float) -> void:
+    dwarf.stars = maxf(0.0, dwarf.stars - dt)
     dwarf.swing = maxf(0.0, dwarf.swing - dt)
     dwarf.stun = maxf(0.0, dwarf.stun - dt)
 
@@ -724,6 +757,8 @@ func _move(dwarf: Dwarf, dt: float) -> void:
     dwarf.vel.y = minf(dwarf.vel.y + GRAVITY * dt, 4.0 if dwarf.swimming else 16.0)
     _move_y(dwarf, dwarf.vel.y * dt)
 
+    if dwarf == rival:
+        return
     if dwarf.pos.y > deepest:
         deepest = dwarf.pos.y
 
@@ -840,103 +875,15 @@ func _explode(at: Vector2i) -> void:
                 if items.has(i):
                     _collect(str(items[i]), Vector2(x + 0.5, y + 0.5), null)
                     items.erase(i)
-    for dwarf in dwarves:
+    for dwarf in _bodies():
         var offset := dwarf.pos - Vector2(0, 0.45) - center
         if offset.length() < 2.3:
-            if dwarf.has("helmet"):
+            if MineBoosters.shielded(self, dwarf):
                 events.append({"type": "shielded", "pos": dwarf.pos, "dwarf": dwarf.index})
                 continue
             dwarf.stun = STUN_TIME
             dwarf.vel = Vector2(signf(offset.x) * 6.0 if offset.x != 0.0 else 0.0, -8.0)
             events.append({"type": "dizzy", "pos": dwarf.pos, "dwarf": dwarf.index})
-
-
-# --- The dragons ---------------------------------------------------------------
-
-
-func _schedule_dragon() -> void:
-    var interval: Array = level.get("dragons", [])
-    if interval.is_empty():
-        _next_dragon = INF
-        return
-    _next_dragon = time + _rng.randf_range(float(interval[0]), float(interval[1]))
-
-
-func _fly_dragons(dt: float) -> void:
-    if time >= _next_dragon:
-        _schedule_dragon()
-        var from := float(level.get("dragons_from", 0.0))
-        if progress() >= from and not dwarves.is_empty():
-            var dwarf: Dwarf = dwarves[_rng.randi_range(0, dwarves.size() - 1)]
-            var dragon := Dragon.new()
-            dragon.column = clampi(int(floor(dwarf.pos.x)), 1, WIDTH - 2)
-            dragon.from_left = _rng.randf() < 0.5
-            dragon.x = -2.0 if dragon.from_left else WIDTH + 2.0
-            dragons.append(dragon)
-            events.append({"type": "dragon", "pos": Vector2(dragon.column + 0.5, view_top)})
-
-    var leaving: Array[Dragon] = []
-    for dragon in dragons:
-        dragon.time += dt
-        var goal := dragon.column + 0.5
-        if dragon.time < DRAGON_WARNING:
-            dragon.x = move_toward(dragon.x, goal, 18.0 * dt)
-        elif not dragon.spat:
-            dragon.spat = true
-            dragon.x = goal
-            var fire := Fire.new()
-            fire.pos = Vector2(goal, view_top + 1.0)
-            fires.append(fire)
-            events.append({"type": "spit", "pos": fire.pos})
-        else:
-            dragon.x += (12.0 if dragon.from_left else -12.0) * dt
-            if dragon.x < -4.0 or dragon.x > WIDTH + 4.0:
-                leaving.append(dragon)
-    for dragon in leaving:
-        dragons.erase(dragon)
-
-
-func _fall_fires(dt: float) -> void:
-    var gone: Array[Fire] = []
-    for fire in fires:
-        fire.pos.y += FIRE_SPEED * dt
-        var x := int(floor(fire.pos.x))
-        var y := int(floor(fire.pos.y + 0.3))
-        if y >= height:
-            gone.append(fire)
-            continue
-        if water_at(x, y) > 0.3:
-            gone.append(fire)
-            events.append({"type": "fizzle", "pos": fire.pos})
-            continue
-        if fuses.has(index(x, y)):
-            # The fire sets the gas on fire.
-            ignite(index(x, y))
-            gone.append(fire)
-            continue
-        var hit_dwarf := false
-        for dwarf in dwarves:
-            if (
-                absf(dwarf.pos.x - fire.pos.x) < 0.55
-                and fire.pos.y > dwarf.pos.y - DWARF_HEIGHT - 0.2
-                and fire.pos.y < dwarf.pos.y
-            ):
-                hit_dwarf = true
-                if dwarf.has("helmet"):
-                    events.append({"type": "shielded", "pos": dwarf.pos, "dwarf": dwarf.index})
-                else:
-                    dwarf.stun = STUN_TIME
-                    events.append({"type": "singed", "pos": dwarf.pos, "dwarf": dwarf.index})
-        if hit_dwarf:
-            gone.append(fire)
-            continue
-        if is_solid(x, y):
-            gone.append(fire)
-            events.append({"type": "fire_hit", "pos": fire.pos})
-            if is_breakable(x, y):
-                _hit(Vector2i(x, y), 1, null)
-    for fire in gone:
-        fires.erase(fire)
 
 
 # --- The water -----------------------------------------------------------------
@@ -985,6 +932,30 @@ func _check_end() -> void:
             state = State.WON
             events.append({"type": "won", "pos": Vector2(chest) + Vector2(0.5, 0.5)})
             return
+    # NOTE (mristin):
+    # The evil miner takes the treasure only if no dwarf is in the treasure
+    # hall: dwarves who arrive with him drive him off.
+    for dwarf in dwarves:
+        if dwarf.pos.y > chest.y - 2.5:
+            return
+    if (
+        rival != null
+        and absf(rival.pos.x - (chest.x + 0.5)) < 0.9
+        and rival.pos.y > chest.y
+        and rival.pos.y <= chest.y + 1.01
+    ):
+        state = State.LOST
+        events.append({"type": "lost", "pos": Vector2(chest) + Vector2(0.5, 0.5)})
+        return
     if level.get("flood", 0.0) > 0.0 and water_total >= float(level["flood"]) * AREA_SCALE:
         state = State.FLOODED
         events.append({"type": "flooded", "pos": Vector2(WIDTH / 2.0, view_top)})
+
+
+## The players' dwarves and the evil miner: whom the fire and the explosions
+## reach.
+func _bodies() -> Array[Dwarf]:
+    var result: Array[Dwarf] = dwarves.duplicate()
+    if rival != null:
+        result.append(rival)
+    return result

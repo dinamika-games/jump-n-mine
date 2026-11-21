@@ -37,6 +37,18 @@ func _show() -> void:
                     }
                 )
             )
+        (
+            cards_now
+            . append(
+                {
+                    "id": "shop",
+                    "title": "Shop and house",
+                    "subtitle": "%d gems" % get_node("/root/Session").purse.gems,
+                    "icon": "shop",
+                    "color": Color("#8a6a1e"),
+                }
+            )
+        )
         cards_now.append({"id": "back", "title": "Back", "icon": "back"})
     else:
         var world: Dictionary = LevelCatalog.WORLDS[Flow.world]
@@ -68,6 +80,8 @@ func _on_chosen(id: String) -> void:
     if id.begins_with("world:"):
         Flow.world = int(id.trim_prefix("world:"))
         _show()
+    elif id == "shop":
+        Flow.open_shop(get_tree(), -1)
     elif id.begins_with("level:"):
         Flow.play_level(get_tree(), int(id.trim_prefix("level:")))
     elif id == "back":

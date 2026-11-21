@@ -1,6 +1,7 @@
 extends SceneTree
 ## Check the expeditions: starting, saving, listing, choosing and deleting
-## them, the stars and which levels are open.
+## them, the stars and which levels are open, the purse of gems, the boosters
+## and the house, and the saves of the format 1.
 
 var _failures: Array[String] = []
 
@@ -58,6 +59,62 @@ func _run() -> void:
     _check(session.sessions().size() == 1, "one expedition is left")
     _check(session.last_id() == "", "the deleted expedition is not the last any more")
     _check(not session.delete_session(first), "an expedition is deleted only once")
+
+    session.start_session("Purse")
+    var purse: String = session.session_id
+    _check(session.purse.gems == 0, "a new expedition has no gems")
+    _check(not session.purse.buy_booster("pump"), "without gems, nothing can be bought")
+    session.purse.add_gems(40)
+    _check(session.purse.buy_booster("pump"), "a pump can be bought with gems")
+    _check(session.purse.gems == 40 - Economy.BOOSTER_PRICES["pump"], "the pump costs its price")
+    session.purse.add_gems(100)
+    for k in range(Economy.MAX_CARRY + 1):
+        session.purse.buy_booster("boots")
+    _check(
+        session.purse.boosters_of("boots") == Economy.MAX_CARRY, "the players carry at most 3 boots"
+    )
+    session.purse.use_booster("boots")
+    _check(session.purse.boosters_of("boots") == Economy.MAX_CARRY - 1, "a booster is used up")
+    var before: int = session.purse.gems
+    _check(session.purse.build(0), "the first stage of the walls can be built")
+    _check(session.purse.stage_of(0) == 1, "the walls have their first stage")
+    _check(session.purse.gems == before - Economy.house_price(0, 0), "a stage costs its price")
+    _check(session.choose_session(purse), "the expedition is read back")
+    _check(session.purse.gems == before - Economy.house_price(0, 0), "the purse is saved")
+    _check(
+        session.purse.stage_of(0) == 1 and session.purse.house_built() == 1, "the house is saved"
+    )
+    _check(session.purse.boosters_of("pump") == 1, "the boosters are saved")
+    _check(session.purse.gems_earned == 140, "all the gems gathered are counted")
+
+    # NOTE (mristin):
+    # A save of the format 1 (before the gems) is read with an empty purse.
+    var old := FileAccess.open(saves.path_join("20200101-000000.json"), FileAccess.WRITE)
+    (
+        old
+        . store_string(
+            (
+                JSON
+                . stringify(
+                    {
+                        "format": 1,
+                        "id": "20200101-000000",
+                        "name": "Old",
+                        "progress": {"stars": {"01_first_swing": 3}, "instruction_seen": true},
+                    }
+                )
+            )
+        )
+    )
+    old.close()
+    _check(session.choose_session("20200101-000000"), "a save of the format 1 is read")
+    _check(session.stars_of("01_first_swing") == 3, "it keeps its stars")
+    _check(
+        session.purse.gems == 0 and session.purse.house_built() == 0,
+        "it starts with an empty purse"
+    )
+    session.delete_session("20200101-000000")
+    session.delete_session(purse)
 
     var broken := FileAccess.open(saves.path_join("broken.json"), FileAccess.WRITE)
     broken.store_string("{not json")

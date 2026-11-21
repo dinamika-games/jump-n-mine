@@ -244,6 +244,7 @@ func _draw() -> void:
     else:
         draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.03, 0.06, 0.72))
     _overlay.draw_picture(self)
+    _draw_behind_cards()
 
     _text(title, Vector2(size.x / 2.0, 150.0), 84, Color("#ffe2a0"), true)
     if subtitle != "":
@@ -262,6 +263,12 @@ func _draw() -> void:
     var vision := get_node_or_null("/root/Vision")
     if vision != null and vision.status() != "":
         _text(vision.status(), Vector2(size.x / 2.0, size.y - 22.0), 22, Color("#c8b8a8"), false)
+
+
+## Draw what a menu shows above its cards (e.g., the house), over the
+## backdrop and under the cards.
+func _draw_behind_cards() -> void:
+    pass
 
 
 ## The cave behind the menus (the camera picture lies over it, see
@@ -352,11 +359,13 @@ func _draw_heads() -> void:
 
 ## Draw an icon of the menus: "play", "new", "continue", "expedition",
 ## "dwarves:<n>", "world:<i>", "level:<i>", "lock", "trash", "back", "keep",
-## "question", "quit", "again", "next", "levels", "ok".
+## "question", "quit", "again", "next", "levels", "ok", "booster:<kind>", "shop",
+## "house", "story".
 func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
     var parts := icon.split(":")
     var kind := parts[0]
     var argument := int(parts[1]) if parts.size() > 1 else 0
+    var word := parts[1] if parts.size() > 1 else ""
     var dim := Color(1, 1, 1, 0.35) if disabled else Color.WHITE
     match kind:
         "play", "continue", "next":
@@ -460,6 +469,26 @@ func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
                     0.0,
                     false
                 )
+        "booster":
+            draw_circle(center, 78.0, Color(1, 0.95, 0.5, 0.2 + 0.1 * sin(_time * 4.0)))
+            Art.booster(self, center, 66.0, word)
+        "shop":
+            Art.booster(self, center + Vector2(-55, 10), 40.0, "gold_pick")
+            Art.gem(self, center + Vector2(10, -20), 34.0, 1)
+            Art.booster(self, center + Vector2(65, 15), 40.0, "helmet")
+        "house":
+            var session := get_node_or_null("/root/Session")
+            HouseArt.draw(
+                self,
+                Rect2(center - Vector2(130, 70), Vector2(260, 150)),
+                session.purse.house if session != null else {},
+                _time
+            )
+        "story":
+            Art.dwarf(self, center + Vector2(-50, 70), 120.0, 0, {"facing": 1, "time": _time})
+            Art.dwarf(
+                self, center + Vector2(50, 70), 120.0, Mine.RIVAL, {"facing": -1, "time": _time}
+            )
         "stars":
             for k in range(3):
                 Art.score_star(self, center + Vector2((k - 1) * 70, 0), 30.0, k < argument)

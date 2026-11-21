@@ -20,6 +20,12 @@ const _WORLDS := ["copper_hills", "sunken_halls", "dragon_deeps"]
 ## The colors of the dwarves' tunics, by their slot.
 const _DWARF_COLORS := ["red", "blue", "green", "yellow"]
 
+## The slot of the evil miner (see [constant Mine.RIVAL]): until his own
+## pictures are painted (assets/pictures/dwarves/evil/), he is a red dwarf in
+## the shadows.
+const _EVIL := 4
+const _EVIL_SHADE := Color(0.42, 0.34, 0.5)
+
 ## In a dwarf picture, the dwarf is this tall (as a share of the picture), with
 ## its feet at this point (as shares of the picture).
 const _DWARF_TALL := 244.0 / 362.0
@@ -325,8 +331,8 @@ static func booster(canvas: CanvasItem, center: Vector2, size: float, kind: Stri
     _centered(canvas, picture("items/booster_%s.png" % kind), center, size * 2.0)
 
 
-## The dwarf of the slot (0 to 3, by the color of its tunic) standing at the
-## feet, as tall as the height (in pixels).
+## The dwarf of the slot (0 to 3, by the color of its tunic, and 4 for the
+## evil miner) standing at the feet, as tall as the height (in pixels).
 ##
 ## The state: "facing" (1 or -1), "swing" (in [0, 1], 1 at the start of a
 ## swing), "sideways" (the swing strikes the block beside the dwarf, not the
@@ -368,12 +374,114 @@ static func dwarf(
         # NOTE (mristin):
         # A walk cycle of six frames, ten frames a second.
         pose = "walk_%d" % (1 + int(fmod(time * 10.0, 6.0)))
-    var texture := picture("dwarves/%s/%s.png" % [_DWARF_COLORS[clampi(slot, 0, 3)], pose])
+    var shade := Color.WHITE
+    var path := "dwarves/%s/%s.png" % [_DWARF_COLORS[clampi(slot, 0, 3)], pose]
+    if slot == _EVIL:
+        if ResourceLoader.exists(_PICTURES + "dwarves/evil/%s.png" % pose):
+            path = "dwarves/evil/%s.png" % pose
+        else:
+            shade = _EVIL_SHADE
+    var texture := picture(path)
     var size := Vector2.ONE * height / _DWARF_TALL
     var facing := int(state.get("facing", 1))
     canvas.draw_set_transform(feet, 0.0, Vector2(facing, 1))
-    canvas.draw_texture_rect(texture, Rect2(-_DWARF_FEET * size, size), false)
+    canvas.draw_texture_rect(texture, Rect2(-_DWARF_FEET * size, size), false, shade)
     canvas.draw_set_transform(Vector2.ZERO)
+    if slot == _EVIL and shade != Color.WHITE:
+        # NOTE (mristin):
+        # The badge of Queen Treacher on his chest: a black crown on purple.
+        var badge := feet + Vector2(0.0, -height * 0.42)
+        canvas.draw_circle(badge, height * 0.09, OUTLINE)
+        canvas.draw_circle(badge, height * 0.075, Color("#6a2a8a"))
+        _crown(canvas, badge, height * 0.06, Color("#141018"))
+    if float(state.get("stars", 0.0)) > 0.0:
+        dizzy_stars(canvas, feet + Vector2(0, -height * 1.02), height * 0.42, time)
+
+
+## A little crown, as wide as twice the size, with its middle at the center.
+static func _crown(canvas: CanvasItem, center: Vector2, size: float, color: Color) -> void:
+    var s := size
+    (
+        canvas
+        . draw_colored_polygon(
+            PackedVector2Array(
+                [
+                    center + Vector2(-s, s * 0.6),
+                    center + Vector2(-s, -s * 0.5),
+                    center + Vector2(-s * 0.5, s * 0.05),
+                    center + Vector2(0, -s * 0.8),
+                    center + Vector2(s * 0.5, s * 0.05),
+                    center + Vector2(s, -s * 0.5),
+                    center + Vector2(s, s * 0.6),
+                ]
+            ),
+            color
+        )
+    )
+
+
+## Stars circling over a knocked out head, with their middle at the center.
+static func dizzy_stars(canvas: CanvasItem, center: Vector2, width: float, time: float) -> void:
+    for k in range(5):
+        var angle := time * 4.0 + k * TAU / 5.0
+        var at := center + Vector2(cos(angle) * width * 0.5, sin(angle) * width * 0.16)
+        var size := width * (0.1 + 0.03 * sin(angle))
+        _star(canvas, at, size * 1.25, OUTLINE)
+        _star(canvas, at, size, Color("#ffe066"))
+
+
+## A mole with its middle at the center, as long as the size, looking to the
+## facing (1 right, -1 left); in the phase "cry" it cries, and while it peeks it
+## looks around. Until its pictures are painted (assets/pictures/mole/), it is
+## drawn in code.
+static func mole(
+    canvas: CanvasItem, center: Vector2, size: float, facing: int, phase: String, time: float
+) -> void:
+    var crying := phase == "cry"
+    var bob := sin(time * (14.0 if crying else 6.0)) * size * 0.03
+    var c := center + Vector2(0, bob)
+    var f := float(facing)
+    if phase == "peek" and fmod(time, 1.2) < 0.6:
+        f = -f
+    var fur := Color("#5b4636")
+    # The body, the belly and the paws.
+    _ellipse(canvas, c, Vector2(size * 0.5, size * 0.36) + Vector2.ONE * 3.0, OUTLINE, 0.0)
+    _ellipse(canvas, c, Vector2(size * 0.5, size * 0.36), fur, 0.0)
+    _ellipse(
+        canvas,
+        c + Vector2(f * size * 0.08, size * 0.12),
+        Vector2(size * 0.3, size * 0.18),
+        fur.lightened(0.25),
+        0.0
+    )
+    for k in [-1, 1]:
+        var paw := c + Vector2(f * size * (0.32 + 0.05 * k), size * 0.26)
+        canvas.draw_circle(paw, size * 0.1, OUTLINE)
+        canvas.draw_circle(paw, size * 0.08, Color("#f2a7b0"))
+    # The snout and the nose.
+    var snout := c + Vector2(f * size * 0.5, -size * 0.04)
+    canvas.draw_circle(snout, size * 0.13, OUTLINE)
+    canvas.draw_circle(snout, size * 0.11, fur.lightened(0.15))
+    canvas.draw_circle(snout + Vector2(f * size * 0.1, -size * 0.02), size * 0.08, Color("#ff7f9a"))
+    # The eyes: tiny dots, or shut tight and crying.
+    var eye := c + Vector2(f * size * 0.28, -size * 0.17)
+    if crying:
+        canvas.draw_line(
+            eye - Vector2(size * 0.06, 0),
+            eye + Vector2(size * 0.06, 0),
+            OUTLINE,
+            maxf(2.0, size * 0.035)
+        )
+        canvas.draw_arc(
+            snout + Vector2(-f * size * 0.1, size * 0.12), size * 0.07, 0.0, PI, 8, OUTLINE, 3.0
+        )
+        for k in range(3):
+            var t := fmod(time * 1.6 + k / 3.0, 1.0)
+            var tear := eye + Vector2(-f * size * (0.05 + 0.25 * t), size * (0.05 + 0.6 * t * t))
+            canvas.draw_circle(tear, size * 0.055, Color(0.55, 0.8, 1.0, 1.0 - t))
+    else:
+        canvas.draw_circle(eye, size * 0.045, OUTLINE)
+        canvas.draw_circle(eye + Vector2(size * 0.012, -size * 0.012), size * 0.015, Color.WHITE)
 
 
 ## A dragon flying with its middle at the center, as wide as the size, its

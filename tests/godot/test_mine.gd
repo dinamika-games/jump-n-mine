@@ -3,7 +3,9 @@ extends SceneTree
 ## a jump only hits down and an arm swung out hits the block beside, a dwarf
 ## hops onto a step of one block, the gas pockets blow up their neighbors, the
 ## springs flood the mine unless they are hammered shut, the fire makes a dwarf
-## dizzy unless it wears the helmet, and the treasure ends the level.
+## dizzy unless it wears the helmet, and the treasure ends the level; the moles
+## dig and cry when hit, the evil miner digs on when the players stop and sees
+## stars when hit, and the boosters bought in the shop start when they help.
 
 const DT := 1.0 / 60.0
 
@@ -217,12 +219,123 @@ func _check_fire() -> void:
     _check(stunned, "the fire of the dragon makes a dwarf who stands still dizzy")
     mine = Mine.new(_plain({"dragons": [1.0, 1.0], "dragons_from": 0.0}), 1)
     dwarf = mine.dwarves[0]
-    dwarf.boosters["helmet"] = 100.0
+    mine.active["helmet"] = 100.0
     var shielded := false
     for k in range(int(6.0 / DT)):
         mine.step(DT)
         shielded = shielded or dwarf.stun > 0.0
     _check(not shielded, "the fire helmet keeps the dwarf from getting dizzy")
+
+    mine = Mine.new(_plain({"dragons": [1.0, 1.0], "dragons_from": 0.0}), 1, {"helmet": 1})
+    dwarf = mine.dwarves[0]
+    shielded = false
+    for k in range(int(6.0 / DT)):
+        mine.step(DT)
+        shielded = shielded or dwarf.stun > 0.0
+    _check(not shielded, "a fire helmet from the shop starts when the fire comes")
+    _check(int(mine.charges["helmet"]) == 0, "the fire helmet from the shop is used up")
+
+
+func _check_boosters() -> void:
+    var mine := Mine.new(_plain(), 1, {"gold_pick": 1, "pump": 1})
+    _stand(mine, 5, Mine.SKY_ROWS + 2)
+    mine.jump(0)
+    _wait(mine, 0.6)
+    _check(not MineBoosters.has(mine, "gold_pick"), "the golden pickaxe waits for the rock")
+    var y := Mine.SKY_ROWS + 3
+    mine.cells[mine.index(5, y)] = Mine.Cell.ROCK
+    mine.hits_left[mine.index(5, y)] = 4
+    _stand(mine, 5, y)
+    mine.jump(0)
+    _wait(mine, 0.6)
+    _check(MineBoosters.has(mine, "gold_pick"), "the golden pickaxe starts on the rock")
+    _check(mine.hits_left[mine.index(5, y)] == 2, "the golden pickaxe hits twice")
+
+    mine.water_total = 0.0
+    for k in range(mine.water.size()):
+        mine.water[k] = 0.0
+    var flood := float(mine.level["flood"]) * Mine.AREA_SCALE
+    mine.water[mine.index(5, mine.height - 2)] = 0.0
+    mine.water_total = flood * (Mine.PUMP_AT + 0.05)
+    mine.step(DT)
+    _check(mine.flood_level() < Mine.PUMP_AT, "the pump from the shop starts when the water rises")
+    _check(int(mine.charges["pump"]) == 0, "the pump is used up")
+
+
+func _check_moles() -> void:
+    var mine := Mine.new(_plain({"depth": 30, "moles": [1.0, 1.0]}), 1)
+    _stand(mine, 5, Mine.SKY_ROWS + 4)
+    var dug := false
+    var came := false
+    for k in range(int(4.0 / DT)):
+        mine.step(DT)
+        for event in mine.take_events():
+            came = came or event["type"] == "mole"
+            dug = dug or event["type"] == "mole_dig"
+    _check(came and dug, "a mole comes and digs a tunnel")
+    _check(mine.gems == 0, "the mole takes no gems")
+
+    mine = Mine.new(_plain({"depth": 30, "moles": [1.0, 1.0]}), 1)
+    var dwarf := _stand(mine, 5, Mine.SKY_ROWS + 4)
+    _wait(mine, 1.2)
+    _check(mine.moles.all.size() == 1, "a mole is out")
+    if mine.moles.all.is_empty():
+        return
+    var mole: MineMoles.Mole = mine.moles.all[0]
+    # NOTE (mristin):
+    # Put the dwarf beside the mole, and swing at it.
+    var cell := Vector2i(int(floor(mole.pos.x)), int(floor(mole.pos.y)))
+    var side := 1 if cell.x < Mine.WIDTH / 2 else -1
+    var stand := cell - Vector2i(side, 0)
+    mine.cells[mine.index(stand.x, stand.y)] = Mine.Cell.AIR
+    mine.cells[mine.index(stand.x, stand.y + 1)] = Mine.Cell.DIRT
+    dwarf.pos = Vector2(stand.x + 0.5, stand.y + 1)
+    dwarf.vel = Vector2.ZERO
+    dwarf.target_x = dwarf.pos.x
+    mine.step(DT)
+    mine.take_events()
+    mine.swing_side(0, side)
+    _check(mole.phase == "cry", "a mole hit by the pickaxe cries")
+    _wait(mine, MineMoles.CRY + 4.0)
+    _check(not mole in mine.moles.all, "the crying mole runs away")
+
+
+func _check_rival() -> void:
+    var level := _plain({"rival": true})
+    var mine := Mine.new(level, 1)
+    var rival_bot := MineBot.new(mine, Mine.RIVAL)
+    _wait(mine, MineRival.ARRIVES + 0.5)
+    _check(mine.rival != null, "the evil miner arrives")
+    var t := 0.0
+    while mine.state == Mine.State.PLAYING and t < 600.0:
+        rival_bot.act(DT)
+        mine.step(DT)
+        t += DT
+    _check(mine.state == Mine.State.LOST, "the evil miner takes the treasure when the players stop")
+    _check(mine.stars() == 0, "no stars when the evil miner was faster")
+
+    mine = Mine.new(level, 1)
+    _wait(mine, MineRival.ARRIVES + 0.5)
+    var dwarf := _stand(mine, 5, Mine.SKY_ROWS)
+    mine.rival.pos = Vector2(6.5, Mine.SKY_ROWS)
+    mine.rival.vel = Vector2.ZERO
+    mine.rival.target_x = 6.5
+    mine.swing_side(0, 1)
+    _check(mine.rival.stars > 0.0, "the evil miner sees stars when a dwarf hits him")
+    _check(mine.rival.stun > 0.0, "the evil miner lies knocked out")
+
+    mine = Mine.new(level, 1)
+    _wait(mine, MineRival.ARRIVES + 0.5)
+    dwarf = _stand(mine, 5, Mine.SKY_ROWS)
+    # NOTE (mristin):
+    # As if the players stopped digging, so that he does not only wait.
+    mine.rivalry._stopped = true
+    mine.rivalry._clock = -10.0
+    mine.rival.pos = Vector2(5.9, Mine.SKY_ROWS)
+    mine.rival.vel = Vector2.ZERO
+    mine.rival.target_x = 5.9
+    _wait(mine, 0.2)
+    _check(dwarf.stars > 0.0 and dwarf.stun > 0.0, "the evil miner knocks out a dwarf beside him")
 
 
 func _check_treasure() -> void:
@@ -333,6 +446,9 @@ func _run() -> void:
     _check_springs()
     _check_fire()
     _check_treasure()
+    _check_boosters()
+    _check_moles()
+    _check_rival()
     _check_puzzles()
     _check_generation()
     print("RESULT: ", "OK" if _failures.is_empty() else "FAILED")

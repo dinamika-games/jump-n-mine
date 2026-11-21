@@ -22,8 +22,10 @@ extends RefCounted
 ## [br]- [code]caves[/code]: open caves, where the dwarves drop down,
 ## [br]- [code]gems[/code]: the gems in the blocks,
 ## [br]- [code]gas[/code]: the pockets of gas, which explode once opened,
-## [br]- [code]boosters[/code]: the boosters in the blocks, by kind (see
-##   [constant Mine.BOOSTERS]),
+## [br]- [code]moles[/code]: how many seconds lie between two moles (from, to), or
+##   an empty array for none,
+## [br]- [code]rival[/code]: whether the evil miner of Queen Treacher races the
+##   dwarves to the treasure,
 ## [br]- [code]springs[/code]: the springs in the walls, each with the depth as a
 ##   fraction of the mine, the side ("left" or "right") and how many cells of
 ##   water it pours per second,
@@ -89,7 +91,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 10,
         "gems": 22,
         "gas": 0,
-        "boosters": {"gold_pick": 2},
+        "moles": [20.0, 40.0],
+        "rival": false,
         "springs": [],
         "flood": 60.0,
         "drain": 0.0,
@@ -109,7 +112,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 21,
         "gas": 0,
-        "boosters": {"gold_pick": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs": [],
         "flood": 60.0,
         "drain": 0.0,
@@ -129,7 +133,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 13,
         "gems": 23,
         "gas": 0,
-        "boosters": {"gold_pick": 3, "boots": 2},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs": [],
         "flood": 60.0,
         "drain": 0.0,
@@ -149,7 +154,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 8,
         "gems": 19,
         "gas": 17,
-        "boosters": {"gold_pick": 1, "boots": 1, "helmet": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs": [],
         "flood": 60.0,
         "drain": 0.0,
@@ -169,7 +175,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 22,
         "gas": 11,
-        "boosters": {"gold_pick": 2, "pump": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.45, "side": "left", "rate": 0.12},
@@ -194,7 +201,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 22,
         "gas": 9,
-        "boosters": {"gold_pick": 1, "pump": 1, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.3, "side": "right", "rate": 0.12},
@@ -219,7 +227,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 22,
         "gas": 9,
-        "boosters": {"gold_pick": 2, "pump": 3, "boots": 2},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.2, "side": "left", "rate": 0.14},
@@ -247,7 +256,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 11,
         "gems": 26,
         "gas": 12,
-        "boosters": {"gold_pick": 2, "pump": 3, "helmet": 1, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.25, "side": "right", "rate": 0.16},
@@ -275,7 +285,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 13,
         "gems": 28,
         "gas": 10,
-        "boosters": {"gold_pick": 2, "pump": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.15, "side": "left", "rate": 0.14},
@@ -304,7 +315,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 10,
         "gems": 26,
         "gas": 13,
-        "boosters": {"gold_pick": 1, "pump": 2, "helmet": 1, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.2, "side": "right", "rate": 0.16},
@@ -333,7 +345,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 24,
         "gas": 12,
-        "boosters": {"gold_pick": 2, "helmet": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs": [],
         "flood": 60.0,
         "drain": 0.0,
@@ -353,7 +366,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 10,
         "gems": 24,
         "gas": 13,
-        "boosters": {"gold_pick": 2, "helmet": 2, "pump": 1, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.0, "side": "right", "rate": 0.12},
@@ -377,7 +391,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 9,
         "gems": 24,
         "gas": 24,
-        "boosters": {"gold_pick": 2, "helmet": 2, "pump": 1, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.4, "side": "right", "rate": 0.12},
@@ -401,7 +416,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 10,
         "gems": 28,
         "gas": 15,
-        "boosters": {"gold_pick": 2, "helmet": 2, "pump": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.3, "side": "left", "rate": 0.14},
@@ -428,7 +444,8 @@ const LEVELS: Array[Dictionary] = [
         "caves": 10,
         "gems": 31,
         "gas": 18,
-        "boosters": {"gold_pick": 2, "helmet": 2, "pump": 2, "boots": 1},
+        "moles": [20.0, 40.0],
+        "rival": true,
         "springs":
         [
             {"at": 0.2, "side": "right", "rate": 0.14},

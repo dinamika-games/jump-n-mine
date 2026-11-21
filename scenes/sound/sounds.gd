@@ -230,6 +230,92 @@ const _RECIPES := {
         },
         {"wave": "noise", "from": 1500.0, "to": 300.0, "start": 0.0, "length": 1.2, "volume": 0.2},
     ],
+    # NOTE (mristin):
+    # The sounds of the moles, the evil miner and the shop have no recordings
+    # yet; they are synthesized.
+    "mole":
+    [
+        {"wave": "sine", "from": 900.0, "to": 1400.0, "start": 0.0, "length": 0.08, "volume": 0.3},
+        {"wave": "sine", "from": 1000.0, "to": 1600.0, "start": 0.1, "length": 0.08, "volume": 0.3},
+    ],
+    "sniff":
+    [
+        {"wave": "sine", "from": 900.0, "to": 600.0, "start": 0.0, "length": 0.25, "volume": 0.3},
+        {"wave": "sine", "from": 800.0, "to": 500.0, "start": 0.3, "length": 0.3, "volume": 0.3},
+        {
+            "wave": "noise",
+            "from": 3000.0,
+            "to": 2000.0,
+            "start": 0.65,
+            "length": 0.15,
+            "volume": 0.1
+        },
+    ],
+    "bonk":
+    [
+        {"wave": "square", "from": 300.0, "to": 120.0, "start": 0.0, "length": 0.12, "volume": 0.3},
+        {"wave": "sine", "from": 1400.0, "to": 1800.0, "start": 0.12, "length": 0.1, "volume": 0.2},
+        {"wave": "sine", "from": 1600.0, "to": 2000.0, "start": 0.24, "length": 0.1, "volume": 0.2},
+    ],
+    "rival":
+    [
+        {
+            "wave": "triangle",
+            "from": 220.0,
+            "to": 200.0,
+            "start": 0.0,
+            "length": 0.15,
+            "volume": 0.4
+        },
+        {
+            "wave": "triangle",
+            "from": 200.0,
+            "to": 180.0,
+            "start": 0.2,
+            "length": 0.15,
+            "volume": 0.4
+        },
+        {
+            "wave": "triangle",
+            "from": 180.0,
+            "to": 140.0,
+            "start": 0.4,
+            "length": 0.3,
+            "volume": 0.4
+        },
+    ],
+    "lost":
+    [
+        {
+            "wave": "triangle",
+            "from": 392.0,
+            "to": 392.0,
+            "start": 0.0,
+            "length": 0.3,
+            "volume": 0.35
+        },
+        {
+            "wave": "triangle",
+            "from": 349.0,
+            "to": 349.0,
+            "start": 0.3,
+            "length": 0.3,
+            "volume": 0.35
+        },
+        {
+            "wave": "triangle",
+            "from": 311.0,
+            "to": 300.0,
+            "start": 0.6,
+            "length": 0.7,
+            "volume": 0.35
+        },
+    ],
+    "buy":
+    [
+        {"wave": "sine", "from": 1568.0, "to": 1568.0, "start": 0.0, "length": 0.1, "volume": 0.3},
+        {"wave": "sine", "from": 2093.0, "to": 2093.0, "start": 0.08, "length": 0.2, "volume": 0.3},
+    ],
 }
 
 ## The recordings of the sounds.

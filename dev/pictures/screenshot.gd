@@ -5,7 +5,12 @@ extends SceneTree
 ##       res://scenes/intro/intro.tscn shot.png 3 [--level=3] [--bots=2] [--no-camera]
 ##
 ## The arguments: the scene, the picture to write and how many seconds to wait;
-## --level sets the level, and --bots lets bots play its dwarves (see Level).
+## --level sets the level, and --bots lets bots play its dwarves (see Level);
+## --gems=<n>, --house=<stage> and --boosters=<n> fill the purse of the
+## expedition (without saving it), to show the shop and the house.
+##
+## dev/pictures/take_screenshots.py takes the screenshots of all the screens on
+## a virtual display (Xvfb), so that no window opens.
 
 
 func _initialize() -> void:
@@ -22,6 +27,15 @@ func _run() -> void:
             Flow.level_index = int(arg.trim_prefix("--level=")) - 1
         if arg.begins_with("--world="):
             Flow.world = int(arg.trim_prefix("--world="))
+        var purse: Purse = root.get_node("/root/Session").purse
+        if arg.begins_with("--gems="):
+            purse.gems = int(arg.trim_prefix("--gems="))
+        if arg.begins_with("--house="):
+            for part in Economy.HOUSE_PARTS:
+                purse.house[part["id"]] = int(arg.trim_prefix("--house="))
+        if arg.begins_with("--boosters="):
+            for kind in Mine.BOOSTERS:
+                purse.boosters[kind] = int(arg.trim_prefix("--boosters="))
     change_scene_to_file(scene)
     await create_timer(seconds).timeout
     var image := root.get_texture().get_image()

@@ -2,8 +2,8 @@ class_name MineView
 extends Node2D
 
 ## Draw the [Mine]: the sky and the grass, the cave, the blocks with their
-## cracks, the water, the gems and the boosters, the dwarves, the dragons and
-## their fire, and the chips and sparks of what happens.
+## cracks, the water, the gems, the dwarves and the evil miner, the moles, the
+## dragons and their fire, and the chips and sparks of what happens.
 
 ## How long an explosion shows, in seconds.
 const BLAST_TIME := 1.3
@@ -66,7 +66,6 @@ func show_events(events: Array[Dictionary]) -> void:
                 _float_text(at, _booster_name(str(event["kind"])), Color("#ffe27a"))
             "pump":
                 _sparkles(at, Color("#8fd0ff"), 18)
-                _float_text(at, "Pump!", Color("#8fd0ff"))
             "explosion":
                 _shake = 0.5
                 _blasts.append({"pos": at, "time": 0.0, "seed": randf()})
@@ -98,6 +97,23 @@ func show_events(events: Array[Dictionary]) -> void:
                 _chips(at - Vector2(0, 0.5), Color("#3a3036"), 8)
             "rope":
                 _float_text(at - Vector2(0, 1.2), "Rope!", Color("#f4e6d0"))
+            "mole_dig":
+                _chips(at, world["dirt"], 5)
+            "mole":
+                _chips(at, world["dirt"], 10)
+            "mole_cry":
+                _sparkles(at, Color("#8fd0ff"), 10)
+                _float_text(at - Vector2(0, 0.6), "Sniff!", Color("#bfe4ff"))
+            "knockout":
+                _sparkles(at - Vector2(0, 0.9), Color("#ffe066"), 16)
+                _float_text(at - Vector2(0, 1.3), "Bonk!", Color("#ffe066"))
+            "bonked":
+                _sparkles(at - Vector2(0, 0.9), Color("#ffe066"), 10)
+                _float_text(at - Vector2(0, 1.3), "Ouch!", Color("#ff9a8a"))
+            "pried":
+                _chips(at, Color("#6d7480"), 12)
+            "rival":
+                _float_text(at - Vector2(0, 1.3), "The evil miner!", Color("#d9a0ff"))
             "won":
                 _sparkles(at, Color("#ffe27a"), 40)
 
@@ -110,6 +126,8 @@ func _booster_name(kind: String) -> String:
             return "Fire helmet!"
         "boots":
             return "Spring boots!"
+        "pump":
+            return "Pump!"
     return "Booster!"
 
 
@@ -207,6 +225,10 @@ func _draw() -> void:
     _draw_water(first, last)
     _draw_items(first, last)
     _draw_chest()
+    for mole in mine.moles.all:
+        _draw_mole(mole)
+    if mine.rival != null:
+        _draw_dwarf(mine.rival)
     for dwarf in mine.dwarves:
         _draw_dwarf(dwarf)
     for fire in mine.fires:
@@ -354,12 +376,17 @@ func _paint_warnings(canvas: CanvasItem) -> void:
         )
 
 
+func _draw_mole(mole: MineMoles.Mole) -> void:
+    Art.mole(self, to_screen(mole.pos), CELL * 0.62, mole.facing, mole.phase, mole.time)
+
+
 func _draw_dwarf(dwarf: Mine.Dwarf) -> void:
     var feet := to_screen(dwarf.pos)
     var boosters: Array = []
-    for kind in dwarf.boosters:
-        if float(dwarf.boosters[kind]) > 0.0:
-            boosters.append(kind)
+    if dwarf != mine.rival:
+        for kind in mine.active:
+            if MineBoosters.has(mine, kind):
+                boosters.append(kind)
     var walking := absf(dwarf.target_x - dwarf.pos.x) > 0.1 and dwarf.on_ground
     (
         Art
@@ -377,6 +404,7 @@ func _draw_dwarf(dwarf: Mine.Dwarf) -> void:
                 "walking": walking,
                 "boosters": boosters,
                 "under_water": dwarf.swimming,
+                "stars": dwarf.stars,
             }
         )
     )

@@ -35,12 +35,21 @@ static func play(level: Dictionary, players: int) -> Mine:
     var bots: Array[MineBot] = []
     for i in range(players):
         bots.append(MineBot.new(mine, i))
+    bots.append(MineBot.new(mine, Mine.RIVAL))
     while mine.state == Mine.State.PLAYING and mine.time < MAX_TIME:
         for bot in bots:
             bot.act(DT)
         mine.step(DT)
         mine.take_events()
     return mine
+
+
+## How far down the evil miner came, in [0, 1] (0 without him).
+static func rival_progress(mine: Mine) -> float:
+    if mine.rival == null:
+        return 0.0
+    var span := float(mine.chest.y - Mine.SKY_ROWS)
+    return clampf((mine.rival.pos.y - Mine.SKY_ROWS) / span, 0.0, 1.0)
 
 
 func _run() -> void:
@@ -69,7 +78,7 @@ func _run() -> void:
                 (
                     (
                         "%s, %d dwarves: %s after %.1f min, %d/%d gems, %d stars, %d hits, "
-                        + "flood %.0f %%, deepest %.0f %% (%.1f s)"
+                        + "flood %.0f %%, deepest %.0f %%, evil miner %.0f %% (%.1f s)"
                     )
                     % [
                         level["id"],
@@ -82,6 +91,7 @@ func _run() -> void:
                         hits,
                         mine.flood_level() * 100.0,
                         mine.progress() * 100.0,
+                        rival_progress(mine) * 100.0,
                         (Time.get_ticks_msec() - started) / 1000.0,
                     ]
                 )

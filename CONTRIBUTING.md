@@ -65,9 +65,17 @@ The arguments after `--`:
 
 The pictures are painted sprite sheets (made with an image generator from the prompts in `dev/pictures/prompts/`), cut into `assets/pictures/` by `python3 dev/pictures/cut_sprites.py <folder with the sheets>`; see the docstring of the script for the sheets it expects. `scenes/art/art.gd` draws them; only the water, the particles and the effects are drawn in code and with shaders.
 
+The sketches of the story (`assets/pictures/intro/frame_<n>.svg`) are written by `python3 dev/pictures/intro/make_storyboard.py`; paint the frames from them with the prompts in `dev/pictures/prompts/intro.md`, and save them as `assets/pictures/intro/frame_<n>.png`, which the game takes over the sketches.
+
 To review the shaders of the gas and the explosions, run `$GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 --script dev/pictures/effects_preview.gd -- <folder>`; to review where the miner's helmets sit on the heads, `dev/pictures/hat_preview.gd` (see its docstring).
 
-To review a screen, take a screenshot as it shows on a 1080p display:
+To review all the screens at once (the intro, the story, the shop, the house, how to play and levels which bots play), take their screenshots on a virtual display, so that no window opens and no sound plays:
+
+```
+python3 dev/pictures/take_screenshots.py <output folder> [--only house_full level_02]
+```
+
+It needs Xvfb (e.g., `sudo apt install xvfb`), which is optional: without it, the script says how to install it and stops. Without Xvfb (and on macOS and Windows), take a screenshot of one screen, as it shows on a 1080p display, in a window:
 
 ```
 $GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 \
@@ -84,6 +92,13 @@ $GODOT --headless --path . --script tests/godot/level_playthrough.gd -- --only=0
 ```
 
 A level should take one bot dwarf about six minutes (between 4 and 8), which is three to five minutes for a player who jumps about once a second; the depth of the level is the main knob.
+The bots play against the evil miner of Queen Treacher, who must never win against them.
+
+To check the prices of the shop and the house, simulate the purse of an expedition (bots play every level, and players of three kinds spend the gems greedily):
+
+```
+$GODOT --headless --audio-driver Dummy --path . --script dev/economy_simulation.gd
+```
 
 ## Checks before a pull request
 

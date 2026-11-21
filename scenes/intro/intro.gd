@@ -17,6 +17,7 @@ func _ready() -> void:
             "icon": "question",
             "color": Color("#4a7a3a")
         },
+        {"id": "story", "title": "The story", "icon": "story", "color": Color("#8a6a1e")},
         {"id": "quit", "title": "Quit", "icon": "quit", "color": Color("#5a3d6e")},
     ]
     set_cards(cards_now)
@@ -31,5 +32,7 @@ func _on_chosen(id: String) -> void:
             Flow.go(get_tree(), Flow.SESSIONS)
         "instruction":
             Flow.go(get_tree(), Flow.INSTRUCTION)
+        "story":
+            Flow.go(get_tree(), Flow.STORY)
         "quit":
             get_tree().quit()

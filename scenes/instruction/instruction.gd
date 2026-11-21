@@ -14,6 +14,7 @@ const STEPS := [
     ["Three or four hits break a block. Grab the gems!", 4.0],
     ["Green gas explodes: step away! Hammer the springs shut.", 5.0],
     ["Dragons spit fire from above: step aside! Find the treasure.", 5.0],
+    ["Punch Queen Treacher's evil miner! But never the moles: they are friends.", 5.0],
 ]
 
 ## The two panels: the player in front of the camera, and her dwarf.
@@ -95,7 +96,7 @@ func _draw() -> void:
     elif step == 2:
         lean = clampf(t * 3.0, 0.0, 1.0) * 0.6
         jump = maxf(0.0, sin(clampf((t - 0.35) * 2.5, 0.0, 1.0) * PI))
-    elif step == 3:
+    elif step == 3 or step == 7:
         # Three waves of the arm out to the side, one hit each.
         wave = maxf(0.0, sin(t * TAU * 3.0))
     else:
@@ -239,7 +240,21 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
         # A block beside the dwarf: every wave of the arm cracks it more.
         var side := Rect2(origin + Vector2(3 * CELL, -CELL), Vector2(CELL, CELL))
         Art.block(self, side, 0, Vector2i(3, 1), clampf(floor(t * 3.0) / 3.0, 0.0, 0.67), true)
-    var swing := 1.0 - fmod(t * 3.0, 1.0) if step in [1, 3, 4] else 0.0
+    if step == 7:
+        # NOTE (mristin):
+        # The evil miner beside the dwarf sees stars from the first punch, and
+        # a mole peeks out of its tunnel behind the dwarf.
+        var tunnel := Rect2(origin + Vector2(0, 0), Vector2(CELL, CELL))
+        draw_texture_rect_region(cave, tunnel, Rect2(Vector2(40, 60), tunnel.size))
+        Art.mole(self, tunnel.get_center(), CELL * 0.62, 1, "peek", _clock)
+        Art.dwarf(
+            self,
+            origin + Vector2(3.55 * CELL, 0),
+            CELL * 1.05,
+            Mine.RIVAL,
+            {"facing": -1, "time": _clock, "stun": t > 0.3, "stars": 1.0 if t > 0.3 else 0.0}
+        )
+    var swing := 1.0 - fmod(t * 3.0, 1.0) if step in [1, 3, 4, 7] else 0.0
     (
         Art
         . dwarf(
@@ -251,7 +266,7 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
                 "facing": -1 if step == 0 and cos(t * TAU) < 0.0 else 1,
                 "time": _clock,
                 "swing": swing,
-                "sideways": step == 3,
+                "sideways": step == 3 or step == 7,
                 "walking": step == 0,
             }
         )

@@ -1,6 +1,6 @@
 extends SceneTree
-## Go through the screens like players: from the intro over a new expedition,
-## how to play and the levels into the first level; a second player joins with
+## Go through the screens like players: from the intro over the story, a new
+## expedition, how to play and the levels into the first level; a second player joins with
 ## her keys; play a bit with the keys, and back out through the pause.
 
 var _failures: Array[String] = []
@@ -41,6 +41,10 @@ func _expect(path: String) -> Node:
 func _run() -> void:
     var session := root.get_node("/root/Session")
     session.use_settings("user://test_screens.cfg")
+    # NOTE (mristin):
+    # Start as on a new computer, which has not seen the story yet.
+    if FileAccess.file_exists(session.settings_path()):
+        DirAccess.remove_absolute(session.settings_path())
     var saves: String = session.saves_dir()
     if DirAccess.dir_exists_absolute(saves):
         for file in DirAccess.get_files_at(saves):
@@ -49,6 +53,11 @@ func _run() -> void:
     change_scene_to_file(Flow.INTRO)
     var screen: CardMenu = await _expect(Flow.INTRO)
     screen.press("play")
+
+    screen = await _expect(Flow.STORY)
+    screen.press("next")
+    await _frames(2)
+    screen.press("skip")
 
     screen = await _expect(Flow.SESSION_NAME)
     screen.press("ok")
@@ -112,6 +121,28 @@ func _run() -> void:
     await _frames(3)
     _check(level._menu != null, "Escape shows the break")
     level._menu.press("levels")
+    screen = await _expect(Flow.LEVEL_SELECT)
+
+    # NOTE (mristin):
+    # The shop sells the boosters for the gems, and the house is built with them.
+    session.purse.add_gems(30)
+    Flow.open_shop(self, -1)
+    screen = await _expect(Flow.SHOP)
+    screen.press("buy:helmet")
+    await _frames(2)
+    _check(session.purse.boosters_of("helmet") == 1, "the shop sells a fire helmet")
+    screen.press("house")
+    screen = await _expect(Flow.HOUSE)
+    var gems_before: int = session.purse.gems
+    screen.press(screen.cards[0]["id"])
+    await _frames(2)
+    _check(session.purse.house_built() == 1, "the first stage of the house is built")
+    _check(session.purse.gems < gems_before, "the house costs gems")
+    screen.press("more")
+    await _frames(2)
+    screen.press("back")
+    screen = await _expect(Flow.SHOP)
+    screen.press("back")
     screen = await _expect(Flow.LEVEL_SELECT)
 
     change_scene_to_file(Flow.SESSIONS)
