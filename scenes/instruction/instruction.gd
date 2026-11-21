@@ -246,7 +246,7 @@ func _draw_mine(step: int, t: float, lean: float, jump: float) -> void:
         # a mole peeks out of its tunnel behind the dwarf.
         var tunnel := Rect2(origin + Vector2(0, 0), Vector2(CELL, CELL))
         draw_texture_rect_region(cave, tunnel, Rect2(Vector2(40, 60), tunnel.size))
-        Art.mole(self, tunnel.get_center(), CELL * 0.62, 1, "peek", _clock)
+        Art.mole(self, tunnel.get_center(), CELL * 0.85, 1, "peek", fmod(_clock, MineMoles.PEEK))
         Art.dwarf(
             self,
             origin + Vector2(3.55 * CELL, 0),

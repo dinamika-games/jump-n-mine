@@ -377,7 +377,7 @@ func _paint_warnings(canvas: CanvasItem) -> void:
 
 
 func _draw_mole(mole: MineMoles.Mole) -> void:
-    Art.mole(self, to_screen(mole.pos), CELL * 0.62, mole.facing, mole.phase, mole.time)
+    Art.mole(self, to_screen(mole.pos), CELL * 0.85, mole.facing, mole.phase, mole.time)
 
 
 func _draw_dwarf(dwarf: Mine.Dwarf) -> void:

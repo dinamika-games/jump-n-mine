@@ -158,9 +158,7 @@ def _pickaxe(hands: Tuple[float, float], angle: float) -> str:
 
 def _miner(pose: Pose) -> str:
     """Draw the evil miner in the pose, with his feet at (0, 0)."""
-    parts: List[str] = [
-        '<ellipse cx="0" cy="4" rx="80" ry="12" fill="#000" opacity="0.2"/>'
-    ]
+    parts: List[str] = ['<ellipse cx="0" cy="4" rx="80" ry="12" fill="#000" opacity="0.2"/>']
     for x, lift in zip(pose.feet, pose.lifts):
         parts.append(
             f'<line x1="{x * 0.5:.1f}" y1="-70" x2="{x:.1f}" y2="{-20 - lift:.1f}" '
@@ -249,7 +247,9 @@ def _star(x: float, y: float, size: float) -> str:
         r = size if k % 2 == 0 else size * 0.45
         a = -math.pi / 2 + k * math.pi / 5
         points.append(f"{x + r * math.cos(a):.1f},{y + r * math.sin(a):.1f}")
-    return f'<polygon points="{" ".join(points)}" fill="#ffe066" stroke="{OUTLINE}" stroke-width="3"/>'
+    return (
+        f'<polygon points="{" ".join(points)}" fill="#ffe066" stroke="{OUTLINE}" stroke-width="3"/>'
+    )
 
 
 def sheet() -> str:
@@ -292,9 +292,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     inkscape = shutil.which("inkscape")
     if inkscape is None:
-        print(
-            "Inkscape is not installed, so we wrote no PNG of the sketch; the SVG is enough."
-        )
+        print("Inkscape is not installed, so we wrote no PNG of the sketch; the SVG is enough.")
         return 0
     png = path.with_suffix(".png")
     subprocess.run(

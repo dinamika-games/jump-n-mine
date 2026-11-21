@@ -138,14 +138,15 @@ func _may_dig(mine: Mine, at: Vector2i) -> bool:
     return kind == Mine.Cell.DIRT or kind == Mine.Cell.AIR
 
 
-## A mole comes out of the earth near a dwarf, with a short tunnel ahead.
+## A mole comes out of the earth one or two rows below a dwarf (where the
+## players see it), with a short tunnel ahead.
 func _spawn(mine: Mine) -> void:
     if mine.dwarves.is_empty():
         return
     var dwarf: Mine.Dwarf = mine.dwarves[_rng.randi_range(0, mine.dwarves.size() - 1)]
     for attempt in range(20):
         var start := Vector2i(
-            _rng.randi_range(2, Mine.WIDTH - 3), int(floor(dwarf.pos.y)) + _rng.randi_range(1, 3)
+            _rng.randi_range(2, Mine.WIDTH - 3), int(floor(dwarf.pos.y)) + _rng.randi_range(1, 2)
         )
         if not _may_dig(mine, start) or mine.cell(start.x, start.y) != Mine.Cell.DIRT:
             continue

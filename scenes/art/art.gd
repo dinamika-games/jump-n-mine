@@ -26,6 +26,11 @@ const _DWARF_COLORS := ["red", "blue", "green", "yellow"]
 const _EVIL := 4
 const _EVIL_SHADE := Color(0.42, 0.34, 0.5)
 
+## In a picture of the mole (assets/pictures/mole/, 400 x 300), the body is
+## this long, and the feet stand on this line.
+const _MOLE_BODY := 340.0
+const _MOLE_FEET := 270.0
+
 ## In a dwarf picture, the dwarf is this tall (as a share of the picture), with
 ## its feet at this point (as shares of the picture).
 const _DWARF_TALL := 244.0 / 362.0
@@ -431,12 +436,35 @@ static func dizzy_stars(canvas: CanvasItem, center: Vector2, width: float, time:
 
 
 ## A mole with its middle at the center, as long as the size, looking to the
-## facing (1 right, -1 left); in the phase "cry" it cries, and while it peeks it
-## looks around. Until its pictures are painted (assets/pictures/mole/), it is
-## drawn in code.
+## facing (1 right, -1 left), in the phase of [MineMoles.Mole] ("dig", "peek",
+## "back", "cry" or "flee") for the time (in seconds) of the phase: it digs (and
+## runs) with two frames, looks back and sniffs while it peeks, and cries. Its
+## feet stand at a little more than half of the size below the center. Without
+## its pictures, it is drawn in code.
 static func mole(
     canvas: CanvasItem, center: Vector2, size: float, facing: int, phase: String, time: float
 ) -> void:
+    var pose := ""
+    match phase:
+        "dig", "back":
+            pose = "dig_%d" % (1 + int(fmod(time * 6.0, 2.0)))
+        "flee":
+            pose = "dig_%d" % (1 + int(fmod(time * 10.0, 2.0)))
+        "peek":
+            pose = "peek_1" if time < MineMoles.PEEK * 0.5 else "peek_2"
+        "cry":
+            pose = "cry_%d" % (1 + int(fmod(time * 2.2, 2.0)))
+    if pose != "" and ResourceLoader.exists(_PICTURES + "mole/%s.png" % pose):
+        var tile := Vector2(400.0, 300.0) * size / _MOLE_BODY
+        var feet := center + Vector2(0, size * 0.59)
+        canvas.draw_set_transform(feet, 0.0, Vector2(facing, 1))
+        canvas.draw_texture_rect(
+            picture("mole/%s.png" % pose),
+            Rect2(Vector2(-tile.x * 0.5, -tile.y * _MOLE_FEET / 300.0), tile),
+            false
+        )
+        canvas.draw_set_transform(Vector2.ZERO)
+        return
     var crying := phase == "cry"
     var bob := sin(time * (14.0 if crying else 6.0)) * size * 0.03
     var c := center + Vector2(0, bob)
