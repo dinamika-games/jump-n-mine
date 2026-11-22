@@ -35,7 +35,7 @@ Attach the sketch of each frame (`frame_<n>.svg`, or a PNG of it), the title pai
 
 **Frame 2: the people want better lives.** Sketch: `frame_2.svg`.
 > A village street with small houses and red roofs. Villagers march peacefully with blank signs held high (no letters), children among them; two dwarves (red and yellow tunics) march along with them, pickaxes over their shoulders. Hopeful evening light.
-> Caption: "The people want better lives: fair work, warm bread and a school for every child. The miners stand with them."
+> Caption: "The people want better lives: fair work, tasty bread and a school for every child. The miners stand with them."
 
 **Frame 3: Queen Treacher.** Sketch: `frame_3.svg`.
 > Night. A dark castle with two pointed towers and a violet flag in front of dark mountains, a pale moon. In front, Queen Treacher frowns with her arms crossed, her pointed shoulders and spiky black crown against the castle. Cold violet and blue light, a little gloomy but not scary.

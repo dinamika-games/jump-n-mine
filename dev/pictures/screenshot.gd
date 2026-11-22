@@ -7,7 +7,8 @@ extends SceneTree
 ## The arguments: the scene, the picture to write and how many seconds to wait;
 ## --level sets the level, and --bots lets bots play its dwarves (see Level);
 ## --gems=<n>, --house=<stage> and --boosters=<n> fill the purse of the
-## expedition (without saving it), to show the shop and the house.
+## expedition (without saving it), to show the shop and the house; --frame=<n>
+## shows the n-th frame of the story, with its caption written.
 ##
 ## dev/pictures/take_screenshots.py takes the screenshots of all the screens on
 ## a virtual display (Xvfb), so that no window opens.
@@ -37,6 +38,13 @@ func _run() -> void:
             for kind in Mine.BOOSTERS:
                 purse.boosters[kind] = int(arg.trim_prefix("--boosters="))
     change_scene_to_file(scene)
+    for arg in args:
+        if arg.begins_with("--frame="):
+            # NOTE (mristin):
+            # Show a later frame of the story (see scenes/story/story.gd).
+            await process_frame
+            await process_frame
+            current_scene.show_frame(int(arg.trim_prefix("--frame=")) - 1, true)
     await create_timer(seconds).timeout
     var image := root.get_texture().get_image()
     image.save_png(output)

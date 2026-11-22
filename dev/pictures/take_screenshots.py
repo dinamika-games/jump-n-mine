@@ -51,7 +51,12 @@ class Shot:
 #: The screenshots, in the order in which we take them.
 SHOTS: Final[List[Shot]] = [
     Shot("intro", "res://scenes/intro/intro.tscn", 2.0),
-    Shot("story", "res://scenes/story/story.tscn", 2.0),
+    Shot("story", "res://scenes/story/story.tscn", 2.0, ["--frame=1"]),
+    Shot("story_2", "res://scenes/story/story.tscn", 2.0, ["--frame=2"]),
+    Shot("story_3", "res://scenes/story/story.tscn", 2.0, ["--frame=3"]),
+    Shot("story_4", "res://scenes/story/story.tscn", 2.0, ["--frame=4"]),
+    Shot("story_5", "res://scenes/story/story.tscn", 2.0, ["--frame=5"]),
+    Shot("story_6", "res://scenes/story/story.tscn", 2.0, ["--frame=6"]),
     Shot("shop", "res://scenes/shop/shop.tscn", 2.0, ["--gems=37", "--boosters=1"]),
     Shot("house_empty", "res://scenes/house/house.tscn", 2.0, ["--gems=12"]),
     Shot("house_half", "res://scenes/house/house.tscn", 2.0, ["--gems=120", "--house=3"]),

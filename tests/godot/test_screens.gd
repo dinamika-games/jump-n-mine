@@ -54,10 +54,10 @@ func _run() -> void:
     var screen: CardMenu = await _expect(Flow.INTRO)
     screen.press("play")
 
-    screen = await _expect(Flow.STORY)
-    screen.press("next")
+    var story: Story = await _expect(Flow.STORY)
     await _frames(2)
-    screen.press("skip")
+    _check(story.hint != "" and story.cards.is_empty(), "the story has no buttons, only the hint")
+    story.skip()
 
     screen = await _expect(Flow.SESSION_NAME)
     screen.press("ok")
