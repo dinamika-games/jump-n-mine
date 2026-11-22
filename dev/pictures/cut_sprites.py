@@ -16,6 +16,11 @@ landscape without the shack in landscape/landscape.png):
 
     python3 dev/pictures/cut_sprites.py --house <folder with the house sheets>
 
+The iron gate with its stone plates (gate/gate_sheet.png) and the icons of the
+menu cards (icons/icon_sheet.png) are cut by themselves, too:
+
+    python3 dev/pictures/cut_sprites.py --gate-and-icons <folder with the two folders>
+
 Every sheet is a grid of equal cells. We cut the cells, scale them to twice
 their size in the game (the game draws them at half), and keep their
 transparency. The dwarves keep their whole cells, so that their feet stay on
@@ -26,7 +31,7 @@ common bounding box.
 import argparse
 import pathlib
 import sys
-from typing import Final, List, Optional, Set, Tuple
+from typing import Final, List, Optional, Sequence, Set, Tuple
 
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -678,6 +683,50 @@ def cut_house(load) -> None:
     save(landscape.resize((2400, 1040), Image.LANCZOS), "house/landscape.png")
 
 
+#: The gate sheet: the gate tile spans from the middle of its first bar to the
+#: middle of its fifth bar (four spaces between the bars), so that the tiles
+#: in a row meet in the middle of a bar and the row repeats seamlessly. The
+#: plates are the bedrock tiles next to it, cut at the dark seams between them.
+GATE_BOXES: Final[Sequence[Tuple[str, Tuple[int, int, int, int]]]] = (
+    ("gate", (109, 2, 709, 718)),
+    ("plate_waiting", (754, 1, 1424, 718)),
+    ("plate_pressed", (1424, 5, 2120, 714)),
+)
+
+#: The size of a tile of the gate sheet; the game squeezes it into a cell.
+GATE_TILE: Final[int] = 256
+
+#: The icons of the menu cards, row by row on a 4 x 2 sheet.
+ICONS: Final[Sequence[str]] = (
+    "question",
+    "quit",
+    "back",
+    "next",
+    "again",
+    "ok",
+    "trash",
+    "lock",
+)
+
+#: The size of an icon; the game draws it at about half.
+ICON: Final[int] = 256
+
+
+def cut_gate_and_icons(load) -> None:
+    """Cut the gate and plates of the puzzles and the icons of the menu cards."""
+    sheet = load("gate/gate_sheet.png")
+    for name, box in GATE_BOXES:
+        tile = sheet.crop(box).resize((GATE_TILE, GATE_TILE), Image.LANCZOS)
+        save(tile, f"blocks/{name}.png")
+
+    for name, cell in zip(ICONS, cells(load("icons/icon_sheet.png"), 4, 2)):
+        icon = cell.crop(cell.getchannel("A").point(lambda a: 255 if a > 16 else 0).getbbox())
+        icon = fit(icon, ICON - 8)
+        square = Image.new("RGBA", (ICON, ICON), (0, 0, 0, 0))
+        square.paste(icon, ((ICON - icon.width) // 2, (ICON - icon.height) // 2))
+        save(square, f"icons/{name}.png")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", help="the folder with the unpacked sheets")
@@ -685,6 +734,11 @@ def main() -> int:
         "--house",
         action="store_true",
         help="cut only the sheets of the dwarves' house, from a folder with one folder per sheet",
+    )
+    parser.add_argument(
+        "--gate-and-icons",
+        action="store_true",
+        help="cut only the gate sheet (gate/gate_sheet.png) and the icons (icons/icon_sheet.png)",
     )
     args = parser.parse_args()
     source = pathlib.Path(args.folder)
@@ -696,6 +750,10 @@ def main() -> int:
 
     if args.house:
         cut_house(load)
+        return 0
+
+    if args.gate_and_icons:
+        cut_gate_and_icons(load)
         return 0
 
     for color, sheet in DWARF_SHEETS.items():

@@ -23,6 +23,9 @@ const SETTLE := 0.3
 const CARD_MARGIN := 0.25
 const STEP_HOLD := 0.1
 
+## The size of the painted icons on the cards (see assets/pictures/icons/).
+const ICON_SIZE := 150.0
+
 ## The shade over the title painting behind the menus.
 const _BACKDROP_SHADE := Color(0.06, 0.03, 0.1, 0.45)
 
@@ -393,7 +396,7 @@ func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
                 }
             )
             if kind == "next":
-                _arrow(center + Vector2(70, 0), 1, dim)
+                _painted_icon("next", center + Vector2(75, 10), ICON_SIZE * 0.6, dim)
         "new":
             Art.dwarf(self, center + Vector2(0, 70), 140.0, 1, {"facing": 1, "time": _time})
             _text("+", center + Vector2(80, -30), 90, Color("#ffe2a0"), true)
@@ -437,40 +440,8 @@ func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
                 false
             )
             _text(str(argument + 1), center + Vector2(0, 18), 64, Color.WHITE, true)
-        "lock":
-            draw_arc(center + Vector2(0, -20), 34.0, PI, TAU, 16, dim, 12.0)
-            draw_rect(Rect2(center + Vector2(-48, -20), Vector2(96, 76)), Color("#8a8090"))
-        "trash":
-            draw_rect(Rect2(center + Vector2(-45, -40), Vector2(90, 100)), Color("#c8c0d0"))
-            draw_rect(Rect2(center + Vector2(-58, -58), Vector2(116, 14)), Color("#c8c0d0"))
-            for k in [-20, 0, 20]:
-                draw_line(center + Vector2(k, -25), center + Vector2(k, 45), Color("#5a5060"), 6.0)
-        "back":
-            _arrow(center, -1, dim)
-        "keep":
-            draw_polyline(
-                PackedVector2Array(
-                    [center + Vector2(-50, 0), center + Vector2(-10, 40), center + Vector2(55, -45)]
-                ),
-                Color("#7cf04f"),
-                18.0
-            )
-        "ok":
-            draw_polyline(
-                PackedVector2Array(
-                    [center + Vector2(-50, 0), center + Vector2(-10, 40), center + Vector2(55, -45)]
-                ),
-                Color("#7cf04f"),
-                18.0
-            )
-        "question":
-            _text("?", center + Vector2(0, 40), 140, Color("#ffe2a0"), true)
-        "quit":
-            draw_line(center + Vector2(-45, -45), center + Vector2(45, 45), Color("#ff7060"), 18.0)
-            draw_line(center + Vector2(45, -45), center + Vector2(-45, 45), Color("#ff7060"), 18.0)
-        "again":
-            draw_arc(center, 50.0, 0.3, TAU - 0.3, 24, Color("#ffe2a0"), 14.0)
-            _arrow(center + Vector2(50, -15), 1, Color("#ffe2a0"), 0.5)
+        "lock", "trash", "back", "keep", "ok", "question", "quit", "again":
+            _painted_icon("ok" if kind == "keep" else kind, center, ICON_SIZE, dim)
         "levels":
             for k in range(3):
                 Art.block(
@@ -506,19 +477,11 @@ func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
                 Art.score_star(self, center + Vector2((k - 1) * 70, 0), 30.0, k < argument)
 
 
-func _arrow(center: Vector2, direction: int, color: Color, scale_by := 1.0) -> void:
-    var s := 60.0 * scale_by
-    draw_colored_polygon(
-        PackedVector2Array(
-            [
-                center + Vector2(direction * s, 0),
-                center + Vector2(-direction * s * 0.2, -s * 0.8),
-                center + Vector2(-direction * s * 0.2, s * 0.8)
-            ]
-        ),
-        color
-    )
-    draw_line(center - Vector2(direction * s, 0), center, color, s * 0.5)
+## Draw the painted icon of the name (see assets/pictures/icons/), as big as the
+## size, tinted by the color.
+func _painted_icon(name: String, center: Vector2, size: float, color: Color) -> void:
+    var rect := Rect2(center - Vector2(size, size) / 2.0, Vector2(size, size))
+    draw_texture_rect(Art.picture("icons/%s.png" % name), rect, false, color)
 
 
 func _text(text: String, center: Vector2, font_size: int, color: Color, outline: bool) -> void:

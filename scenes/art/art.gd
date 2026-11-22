@@ -14,6 +14,9 @@ const GOLD := Color("#ffcf3a")
 
 const _PICTURES := "res://assets/pictures/"
 
+## The height of the crystal of a plate, waiting and pressed, as a part of the tile.
+const _PLATE_CRYSTAL := [0.098, 0.119]
+
 ## The worlds by their index into [constant LevelCatalog.WORLDS].
 const _WORLDS := ["copper_hills", "sunken_halls", "dragon_deeps"]
 
@@ -279,43 +282,25 @@ static func jump_line(
     canvas.draw_polyline(tip, OUTLINE, maxf(1.5, thickness * 0.4))
 
 
-## An iron gate in the floor, closed: bars over the dark.
+## An iron gate in the floor, closed: bars over the dark. The tiles of a row
+## meet in the middle of a bar, so that the row repeats seamlessly.
 static func gate(canvas: CanvasItem, rect: Rect2) -> void:
     canvas.draw_rect(rect, Color("#1c1820"))
-    var iron := Color("#6d7480")
-    var bar := rect.size.x / 5.0
-    for k in range(5):
-        var x := rect.position.x + (k + 0.5) * bar
-        canvas.draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), OUTLINE, bar * 0.55)
-        canvas.draw_line(Vector2(x, rect.position.y), Vector2(x, rect.end.y), iron, bar * 0.35)
-        canvas.draw_line(
-            Vector2(x - bar * 0.08, rect.position.y),
-            Vector2(x - bar * 0.08, rect.end.y),
-            iron.lightened(0.4),
-            2.0
-        )
-    for y in [rect.position.y + rect.size.y * 0.2, rect.end.y - rect.size.y * 0.2]:
-        canvas.draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), OUTLINE, 9.0)
-        canvas.draw_line(
-            Vector2(rect.position.x, y), Vector2(rect.end.x, y), iron.darkened(0.1), 5.0
-        )
+    canvas.draw_texture_rect(picture("blocks/gate.png"), rect, false)
 
 
-## A stone plate in the floor which a dwarf presses by standing on it; it
-## glows when it is pressed.
+## A stone plate in the floor which a dwarf presses by standing on it; its
+## crystal glows when it is pressed, and pulses while it waits.
 static func plate(canvas: CanvasItem, rect: Rect2, pressed: bool, time: float) -> void:
-    bedrock(canvas, rect)
-    var top := Rect2(
-        rect.position + Vector2(6, 4 + (6 if pressed else 0)), Vector2(rect.size.x - 12, 18)
-    )
-    _rounded(canvas, top.grow(2.0), 6.0, OUTLINE)
-    _rounded(canvas, top, 5.0, Color("#b9b2a5"))
+    var tile := "blocks/plate_pressed.png" if pressed else "blocks/plate_waiting.png"
+    canvas.draw_texture_rect(picture(tile), rect, false)
+    var crystal := rect.position + rect.size * Vector2(0.5, _PLATE_CRYSTAL[int(pressed)])
     var glow := (
-        Color(0.5, 1.0, 0.4) if pressed else Color(1.0, 0.85, 0.3, 0.55 + 0.35 * sin(time * 4.0))
+        Color(0.5, 1.0, 0.4, 0.3)
+        if pressed
+        else Color(1.0, 0.85, 0.3, 0.15 + 0.15 * sin(time * 4.0))
     )
-    canvas.draw_circle(top.get_center(), 6.0, glow)
-    if pressed:
-        canvas.draw_circle(top.get_center(), 14.0, Color(0.5, 1.0, 0.4, 0.3))
+    canvas.draw_circle(crystal, rect.size.x * 0.1, glow)
 
 
 ## A spring in the wall, pouring water, or sealed with a plug.
