@@ -5,7 +5,7 @@ are written by dev/pictures/make_gate_and_icon_sketches.py.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/gate_and_icons.py <folder with gate/ and icons/>
+    python3 dev/pictures/cut_sprites/cut_gate_and_icons.py <folder with gate/ and icons/>
 """
 
 import sys

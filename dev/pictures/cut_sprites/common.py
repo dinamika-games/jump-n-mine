@@ -7,15 +7,15 @@ CONTRIBUTING.md). Every sheet is a grid of equal cells. We cut the cells, scale
 them to twice their size in the game (the game draws them at half), and keep
 their transparency. Each cutter takes the folder with the unpacked sheets:
 
-* ``dwarves.py``: the dwarves, their walk cycles and sideways strikes, and the
+* ``cut_dwarves.py``: the dwarves, their walk cycles and sideways strikes, and the
   miner's helmets;
-* ``moles_and_evil_miner.py``: the mole and the evil miner;
-* ``blocks.py``: the blocks, the caves, the skies, the cracks and the springs;
-* ``items.py``: the gems, the boosters, the chest, the pickaxe and the stars;
-* ``dragon.py``: the dragon and its fire;
-* ``title.py``: the title painting;
-* ``house.py``: the dwarves' house;
-* ``gate_and_icons.py``: the iron gate with its stone plates, and the icons of
+* ``cut_moles_and_evil_miner.py``: the mole and the evil miner;
+* ``cut_blocks.py``: the blocks, the caves, the skies, the cracks and the springs;
+* ``cut_items.py``: the gems, the boosters, the chest, the pickaxe and the stars;
+* ``cut_dragon.py``: the dragon and its fire;
+* ``cut_title.py``: the title painting;
+* ``cut_house.py``: the dwarves' house;
+* ``cut_gate_and_icons.py``: the iron gate with its stone plates, and the icons of
   the menu cards.
 
 The image generator sometimes paints a checkerboard, a flat magenta or a haze

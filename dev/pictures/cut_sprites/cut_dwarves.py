@@ -5,7 +5,7 @@ in side/) and of the miner's helmets (helmets/).
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/dwarves.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_dwarves.py <folder with the sheets>
 """
 
 import sys

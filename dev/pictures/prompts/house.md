@@ -60,7 +60,7 @@ Attach `house_base.png` (the painted shack), `sketch_walls_sheet.png` (written b
 
 ## 4. Sheet: the roof
 
-The painted walls (`walls_sheet.png`) kept their boxes; the game takes them as `assets/pictures/house/walls/<stage>.png` (`python3 dev/pictures/cut_sprites/house.py <folder>`). The roof follows the same pattern: its sheet has the grey boards of the shack as its first cell, and its eaves sit on the baseline of its cells, so that it can be laid onto the walls.
+The painted walls (`walls_sheet.png`) kept their boxes; the game takes them as `assets/pictures/house/walls/<stage>.png` (`python3 dev/pictures/cut_sprites/cut_house.py <folder>`). The roof follows the same pattern: its sheet has the grey boards of the shack as its first cell, and its eaves sit on the baseline of its cells, so that it can be laid onto the walls.
 
 Attach `house_base.png`, `sketch_roof_sheet.png` (written by `make_house_sketch.py`), `walls_sheet_painted.png` (the painted walls), `now_roof_stages.png` (the six stages as the game draws them now, cut from screenshots with `--house=0` to `--house=5`; the rose window of the golden roof belongs to the windows, and the chimneys are a part of their own) and `title.png`. Send the style brief of the walls (section 3) first, then:
 
@@ -80,7 +80,7 @@ Attach `house_base.png`, `sketch_roof_sheet.png` (written by `make_house_sketch.
 
 ## 5. The landscape without the shack
 
-The roofs came back on a painted checkerboard instead of a transparent background; `cut_sprites/house.py` floods it away from the edges of the cells (it stops at the dark outlines), and the transparency paragraph in the style brief of section 3 now asks for real transparency, or a flat magenta background, which the script removes the same way.
+The roofs came back on a painted checkerboard instead of a transparent background; `cut_sprites/cut_house.py` floods it away from the edges of the cells (it stops at the dark outlines), and the transparency paragraph in the style brief of section 3 now asks for real transparency, or a flat magenta background, which the script removes the same way.
 
 The game lays the painted parts over the landscape, so it needs the landscape of the painted shack without the shack. Attach `house_base.png` and `title.png`, and send the style brief of section 2 (the picture, not the sheets) first, then:
 

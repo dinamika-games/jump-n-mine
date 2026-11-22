@@ -3,7 +3,7 @@ Copy the title painting (jump_n_mine_title/) into the pictures of the game.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/title.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_title.py <folder with the sheets>
 """
 
 import sys

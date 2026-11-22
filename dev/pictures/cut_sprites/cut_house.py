@@ -8,7 +8,7 @@ transparent background; we clear them.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/house.py <folder with the house sheets>
+    python3 dev/pictures/cut_sprites/cut_house.py <folder with the house sheets>
 """
 
 import sys

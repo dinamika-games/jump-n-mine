@@ -5,7 +5,7 @@ Cut the sheets of the blocks, the caves and the skies of the three worlds
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/blocks.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_blocks.py <folder with the sheets>
 """
 
 import sys

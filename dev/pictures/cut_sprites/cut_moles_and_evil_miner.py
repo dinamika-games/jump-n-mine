@@ -5,7 +5,7 @@ the bits of the neighbouring cells, and scale the evil miner to the dwarves.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/moles_and_evil_miner.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_moles_and_evil_miner.py <folder with the sheets>
 """
 
 import sys
@@ -14,7 +14,7 @@ from typing import Final, List, Set, Tuple
 from PIL import Image
 
 from common import Sheets, cells, run, save
-from dwarves import DWARF_CELL
+from cut_dwarves import DWARF_CELL
 
 
 #: The poses of the mole, in the cells of its sheet (see

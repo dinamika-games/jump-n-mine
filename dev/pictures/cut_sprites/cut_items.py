@@ -4,7 +4,7 @@ pickaxe and the stars, each to its own outline.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/items.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_items.py <folder with the sheets>
 """
 
 import sys

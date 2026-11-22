@@ -5,7 +5,7 @@ that the frames stay in place against each other.
 
 Usage:
 
-    python3 dev/pictures/cut_sprites/dragon.py <folder with the sheets>
+    python3 dev/pictures/cut_sprites/cut_dragon.py <folder with the sheets>
 """
 
 import sys
