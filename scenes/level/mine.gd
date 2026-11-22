@@ -47,10 +47,8 @@ const SIDE_REACH := 0.35
 ## [MineBoosters]).
 const BOOSTERS := ["gold_pick", "helmet", "boots", "pump"]
 
-## How long a booster lasts, in seconds; it helps all the players' dwarves.
-const BOOSTER_TIME := {"gold_pick": 20.0, "helmet": 30.0, "boots": 25.0}
-
-## The pump starts by itself when the mine is this full of water.
+## The pump starts by itself when the mine is this full of water, and pumps
+## again whenever the mine fills up this far.
 const PUMP_AT := 0.6
 
 ## The slot of the evil miner of Queen Treacher (see [member rival]); the slots
@@ -170,7 +168,8 @@ var rivalry := MineRival.new()
 var moles := MineMoles.new()
 ## The boosters which the players brought along, by kind: how many.
 var charges := {}
-## The boosters which help now, by kind: how many seconds they still last.
+## The boosters which started in this level, by kind (true): a booster helps
+## the players' dwarves for the rest of the level.
 var active := {}
 var dragons: Array[Dragon] = []
 var fires: Array[Fire] = []
@@ -442,10 +441,11 @@ func step(dt: float) -> void:
         return
     time += dt
 
-    for kind in active.keys():
-        active[kind] = maxf(0.0, float(active[kind]) - dt)
     if flood_level() >= PUMP_AT:
-        MineBoosters.use(self, "pump")
+        if MineBoosters.has(self, "pump"):
+            MineBoosters.pump(self, Vector2(WIDTH / 2.0, view_top + 2.0))
+        else:
+            MineBoosters.use(self, "pump")
 
     for dwarf in dwarves:
         move_dwarf(dwarf, dt)

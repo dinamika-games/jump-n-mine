@@ -45,6 +45,12 @@ const WAIT_FOR_HEAD := 4.0
 ## Show the cards at the end this long after the treasure or the flood.
 const END_DELAY := 2.0
 
+## The menu at the end of a level takes a jump only after the players stopped
+## digging this long (in seconds, see [member CardMenu.calm]), so that the next
+## level does not start by itself before they can choose the shop. In
+## recordings, the players jump about once a second while they dig.
+const END_CALM := 1.5
+
 var level: Dictionary
 var mine: Mine
 var view: MineView
@@ -416,6 +422,8 @@ func _tip_for(type: String) -> void:
 func _show_end() -> void:
     _menu = CardMenu.new()
     _menu.background = false
+    _menu.calm = END_CALM
+    _menu.hint = "Stop digging, step left or right to choose, and jump to press!"
     var cards: Array[Dictionary] = []
     var purse := "+%d gems, %d in the purse" % [mine.gems, get_node("/root/Session").purse.gems]
     if mine.state == Mine.State.WON:

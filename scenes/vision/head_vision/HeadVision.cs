@@ -115,11 +115,20 @@ public partial class HeadVision : Node
     public float ReIdMemory = 1800f;
 
     /// <summary>
-    /// Estimate the poses of at most this many players per frame, those whose
-    /// poses are the oldest; a pose costs about 10 to 16 ms on a laptop CPU.
+    /// Estimate the poses of at most this many players per frame (in one batch),
+    /// those whose poses are the oldest.
     /// </summary>
+    /// <remarks>
+    /// On a laptop CPU (an i7-6600U), the poses cost 17 ms for one player, 31
+    /// for two and 46 for four, next to 26 ms of the detector. With one pose per
+    /// frame in turns, the players who played together lost the swings of their
+    /// arms: replayed with every fourth pose (as for four players), the
+    /// recordings of single players lose a third of their swings. With all four
+    /// poses in every frame, the frames come about a third less often, which
+    /// loses about 5 % of the jumps in the recordings.
+    /// </remarks>
     [Export]
-    public int PoseBudget = 1;
+    public int PoseBudget = 4;
 
     private enum EventKind
     {
@@ -616,8 +625,8 @@ public partial class HeadVision : Node
     }
 
     /// <summary>
-    /// Estimate the poses of the players seen in the frame, at most
-    /// <see cref="PoseBudget"/> of them, those whose poses are the oldest.
+    /// Estimate the poses of the players seen in the frame, in one batch, at
+    /// most <see cref="PoseBudget"/> of them, those whose poses are the oldest.
     /// </summary>
     /// <returns>The tracks whose poses were estimated.</returns>
     private List<Track> EstimatePoses(
@@ -635,14 +644,18 @@ public partial class HeadVision : Node
         candidates.Sort((a, b) => a.PoseTimestamp.CompareTo(b.PoseTimestamp));
 
         int count = Math.Min(PoseBudget, candidates.Count);
+        var chosen = candidates.GetRange(0, count);
+        var boxes = new List<BoundingBox>(count);
+        foreach (var track in chosen)
+        {
+            boxes.Add(Pose.PlayerBox(track.RawHead!.Value, result.Bodies, frame.Width, frame.Height));
+        }
+        var estimated = poses.EstimateMany(frame, boxes);
         for (int i = 0; i < count; i++)
         {
-            var track = candidates[i];
-            var box = Pose.PlayerBox(track.RawHead!.Value, result.Bodies, frame.Width, frame.Height);
-            var pose = poses.Estimate(frame, box);
-            track.ObservePose(pose, frame.Timestamp, frame.Width, frame.Height);
+            chosen[i].ObservePose(estimated[i], frame.Timestamp, frame.Width, frame.Height);
         }
-        return candidates.GetRange(0, count);
+        return chosen;
     }
 
     public override void _Process(double delta)

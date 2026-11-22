@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using JumpNMine.Vision;
 using Xunit;
@@ -85,6 +86,35 @@ namespace JumpNMine.Tests
                 MathF.Abs(roll - angle) < 0.15f,
                 $"Expected the tilt {angle:F2}, got {roll:F2}."
             );
+        }
+
+        [Fact]
+        public void Test_that_a_batch_estimates_the_same_poses_as_one_by_one()
+        {
+            var frame = TestData.LoadFrame("crew_of_six_640x480.png");
+            using var detector = new YoloxModel(TestData.LoadModel(TestData.Yolox));
+            using var model = new RtmPoseModel(TestData.LoadModel(TestData.RtmPose));
+
+            var result = detector.Detect(frame);
+            Assert.True(result.Heads.Count >= 2, $"Expected the crew, got {result.Heads.Count} heads.");
+            var boxes = new List<BoundingBox>();
+            foreach (var head in result.Heads)
+            {
+                boxes.Add(Pose.PlayerBox(head, result.Bodies, frame.Width, frame.Height));
+            }
+
+            var batch = model.EstimateMany(frame, boxes);
+            Assert.Equal(boxes.Count, batch.Length);
+            for (int i = 0; i < boxes.Count; i++)
+            {
+                var single = model.Estimate(frame, boxes[i]);
+                for (int k = 0; k < Pose.Count; k++)
+                {
+                    Assert.True(MathF.Abs(single.X[k] - batch[i].X[k]) < 1e-3f, $"Player {i}, keypoint {k}: x differs.");
+                    Assert.True(MathF.Abs(single.Y[k] - batch[i].Y[k]) < 1e-3f, $"Player {i}, keypoint {k}: y differs.");
+                    Assert.True(MathF.Abs(single.Score[k] - batch[i].Score[k]) < 1e-3f, $"Player {i}, keypoint {k}: the score differs.");
+                }
+            }
         }
     }
 }

@@ -156,5 +156,30 @@ func _run() -> void:
     await _frames(2)
     _check(session.sessions().is_empty(), "the expedition was deleted in three steps")
 
+    _check_calm_menu()
+
     print("RESULT: ", "OK" if _failures.is_empty() else "FAILED")
     quit(0 if _failures.is_empty() else 1)
+
+
+## The menu at the end of a level ignores the jumps of the players who still dig,
+## and takes a jump only after they stopped (see [constant Level.END_CALM]).
+func _check_calm_menu() -> void:
+    var menu := CardMenu.new()
+    menu.calm = Level.END_CALM
+    menu.set_cards([{"id": "next", "title": "Next level"}, {"id": "shop", "title": "Shop"}])
+    root.add_child(menu)
+    var pressed: Array[String] = []
+    menu.chosen.connect(func(id: String) -> void: pressed.append(id))
+    menu._pointing[7] = {"card": 0, "since": 10.0, "beyond": 0.0}
+    menu._time = 0.5
+    menu._on_head_jumped(7, 1.0)
+    _check(pressed.is_empty(), "a jump right after the end of a level presses no card")
+    for t in [1.5, 2.5, 3.5]:
+        menu._time = t
+        menu._on_head_jumped(7, 1.0)
+    _check(pressed.is_empty(), "the jumps of a player who still digs press no card")
+    menu._time = 6.0
+    menu._on_head_jumped(7, 1.0)
+    _check(pressed == ["next"], "a jump after the player stopped digging presses the card")
+    menu.queue_free()

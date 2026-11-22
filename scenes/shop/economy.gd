@@ -18,10 +18,10 @@ const MAX_CARRY := 3
 
 ## The names of the boosters and what they do, for the shop.
 const BOOSTER_INFO := {
-    "gold_pick": ["Golden pickaxe", "Double hits on the rock, 20 s"],
-    "helmet": ["Fire helmet", "No dizziness from fire, 30 s"],
-    "boots": ["Spring boots", "Hop up two blocks, 25 s"],
-    "pump": ["Pump", "Pumps out the water"],
+    "gold_pick": ["Golden pickaxe", "Double hits, for a whole level"],
+    "helmet": ["Fire helmet", "No dizziness from fire, for a whole level"],
+    "boots": ["Spring boots", "Hop up two blocks, for a whole level"],
+    "pump": ["Pump", "Pumps out the water, for a whole level"],
 }
 
 ## The price of each of the five stages of a part of the house, before the

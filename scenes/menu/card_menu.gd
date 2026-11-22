@@ -26,6 +26,12 @@ const STEP_HOLD := 0.1
 ## The shade over the title painting behind the menus.
 const _BACKDROP_SHADE := Color(0.06, 0.03, 0.1, 0.45)
 
+## A jump presses a card only once the menu showed this long (in seconds), and
+## only if the same head did not jump for this long before: the menu at the end
+## of a level sets it, since the players are still digging when it comes up,
+## and their next jump would otherwise press the card under them.
+var calm := 0.0
+
 var title := ""
 var subtitle := ""
 var hint := "Step left or right to choose, and jump to press!"
@@ -45,6 +51,8 @@ var _pointing := {}
 var _pressed := -1
 var _pressed_time := 0.0
 var _time := 0.0
+## Per head id: when (in [member _time]) it jumped the last time.
+var _last_jump := {}
 var _font: Font = ThemeDB.fallback_font
 var _overlay := CameraOverlay.new()
 
@@ -175,6 +183,10 @@ func _process(delta: float) -> void:
 
 func _on_head_jumped(id: int, _strength: float) -> void:
     if not visible or not is_visible_in_tree():
+        return
+    var since_jump := _time - float(_last_jump.get(id, -INF))
+    _last_jump[id] = _time
+    if _time < calm or since_jump < calm:
         return
     var pointing: Dictionary = _pointing.get(id, {})
     if pointing.is_empty() or float(pointing["since"]) < SETTLE:

@@ -2,21 +2,23 @@ class_name MineBoosters
 extends RefCounted
 
 ## The boosters which the players bought in the shop and brought into the mine
-## ([member Mine.charges]): each starts by itself when it helps, for all the
-## players' dwarves ([member Mine.active]): the golden pickaxe on the hard
-## rock, the fire helmet when the fire or an explosion would make a dwarf
-## dizzy, the spring boots before a step of two blocks, and the pump when the
-## mine is filling up ([constant Mine.PUMP_AT]). The evil miner never has them.
+## ([member Mine.charges]): each starts by itself when it helps, and then helps
+## all the players' dwarves for the rest of the level ([member Mine.active]):
+## the golden pickaxe on the hard rock, the fire helmet when the fire or an
+## explosion would make a dwarf dizzy, the spring boots before a step of two
+## blocks, and the pump when the mine is filling up ([constant Mine.PUMP_AT]),
+## and whenever it fills up again. A booster bought in the shop thus lasts a
+## level. The evil miner never has them.
 
 
 ## Whether the booster of the kind (see [constant Mine.BOOSTERS]) helps the
 ## players' dwarves now.
 static func has(mine: Mine, kind: String) -> bool:
-    return float(mine.active.get(kind, 0.0)) > 0.0
+    return bool(mine.active.get(kind, false))
 
 
-## Start a booster of the kind, if the players have one left; return whether it
-## started.
+## Start a booster of the kind for the rest of the level, if the players have
+## one left; return whether it started.
 static func use(mine: Mine, kind: String) -> bool:
     if int(mine.charges.get(kind, 0)) <= 0:
         return false
@@ -26,10 +28,9 @@ static func use(mine: Mine, kind: String) -> bool:
         if dwarf.pos.y >= mine.deepest - 0.01:
             at = dwarf.pos - Vector2(0, 1.2)
     mine.events.append({"type": "booster", "pos": at, "kind": kind})
+    mine.active[kind] = true
     if kind == "pump":
         pump(mine, at)
-    else:
-        mine.active[kind] = float(Mine.BOOSTER_TIME.get(kind, 20.0))
     return true
 
 

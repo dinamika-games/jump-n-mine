@@ -7,7 +7,7 @@ Thank you for helping with Jump 'n' Mine!
 The game is made with [Godot] 4.6 (.NET), written in GDScript and C#:
 
 * The vision runs in C# (`scenes/vision/`).
-  YOLOX finds the heads on every camera frame through ONNX Runtime, the `MultiHeadTracker` follows them, a `JumpGauge` for each head counts the jumps, `RtmPoseModel` finds the poses of the players (in turns, one per frame), and the `FaceEmbedder` (YuNet and SFace) recognizes the faces of the players who come back.
+  YOLOX finds the heads on every camera frame through ONNX Runtime, the `MultiHeadTracker` follows them, a `JumpGauge` for each head counts the jumps, `RtmPoseModel` finds the poses of up to four players on every frame (in one batch), and the `FaceEmbedder` (YuNet and SFace) recognizes the faces of the players who come back.
   The core (`scenes/vision/core/`, and `scenes/vision/yolox/`) does not depend on Godot, so we unit-test it with plain .NET in `tests/JumpNMine.Tests/`.
   The node `HeadVision` runs it all in the game; the autoload `Vision` finds the camera and keeps the heads.
 * The game is in GDScript (`scenes/`).
@@ -66,6 +66,8 @@ The arguments after `--`:
 The pictures are painted sprite sheets (made with an image generator from the prompts in `dev/pictures/prompts/`), cut into `assets/pictures/` by `python3 dev/pictures/cut_sprites.py <folder with the sheets>`; see the docstring of the script for the sheets it expects. `scenes/art/art.gd` draws them; only the water, the particles and the effects are drawn in code and with shaders.
 
 The sketches of the story (`assets/pictures/intro/frame_<n>.svg`) are written by `python3 dev/pictures/intro/make_storyboard.py`; paint the frames from them with the prompts in `dev/pictures/prompts/intro.md`, and save them as `assets/pictures/intro/frame_<n>.png`, which the game takes over the sketches.
+
+The sketch of the dwarves' house (`sketch_house_base.svg`, before any improvement) is written by `python3 dev/pictures/house/make_house_sketch.py <folder>`; paint the house from it with the prompts in `dev/pictures/prompts/house.md`. The sketches of the sheets of the other parts, and the layout of their pieces over the painted landscape, are written by `python3 dev/pictures/house/make_part_sheets.py <landscape.png> <folder>`; `python3 dev/pictures/cut_sprites.py --house <folder>` cuts the painted sheets.
 
 To review the shaders of the gas and the explosions, run `$GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 --script dev/pictures/effects_preview.gd -- <folder>`; to review where the miner's helmets sit on the heads, `dev/pictures/hat_preview.gd` (see its docstring).
 

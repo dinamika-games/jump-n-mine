@@ -116,7 +116,8 @@ func _text(text: String, at: Vector2, font_size: int, color: Color) -> void:
 
 
 ## The boosters which the dwarves brought along, in the bottom left corner: how
-## many are left of each, and a bar for the one which helps now.
+## many are left of each, and a glow around the ones which help now (for the
+## rest of the level).
 func _draw_boosters() -> void:
     var area := get_viewport_rect().size
     var x := 24.0
@@ -131,7 +132,4 @@ func _draw_boosters() -> void:
             draw_circle(center, 38.0, Color(1, 0.9, 0.4, 0.3 + 0.15 * sin(_time * 6.0)))
         Art.booster(self, center, 28.0, kind)
         _text("%d" % left, center + Vector2(24, 34), 30, Color.WHITE)
-        if on:
-            var share := float(mine.active[kind]) / float(Mine.BOOSTER_TIME.get(kind, 20.0))
-            draw_rect(Rect2(center + Vector2(-34, 44), Vector2(68 * share, 6)), Color("#ffe27a"))
         x += 96.0

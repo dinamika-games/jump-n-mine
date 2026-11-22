@@ -4,8 +4,10 @@ extends RefCounted
 ## Draw the dwarves' house with the stages of its parts (see [constant
 ## Economy.HOUSE_PARTS]): a little shack at first, which grows with every
 ## improvement into a palace with a tower, a garden, a fence, the mine entrance
-## and the village square. The house is drawn in code (no painted pictures), on
-## a stage of 1200 x 520 which is scaled into the rectangle.
+## and the village square. The house is drawn in code, apart from the parts
+## which are painted already (the walls and the roof, see [constant
+## _WALL_PICTURES] and [constant _ROOF_PICTURES]), on a
+## stage of 1200 x 520 which is scaled into the rectangle.
 
 const W := 1200.0
 const H := 520.0
@@ -18,6 +20,95 @@ const _STONE_DARK := Color("#6e6a63")
 const _GOLD := Color("#ffcf3a")
 const _GLASS := Color("#9fd4ff")
 const _OUTLINE := Color("#1a1016")
+
+## The painted walls of the stages (see dev/pictures/prompts/house.md), under
+## assets/pictures/; a stage without its picture is drawn in code.
+const _WALL_PICTURES := [
+    "house/walls/planks.png",
+    "house/walls/log_walls.png",
+    "house/walls/timber_frame.png",
+    "house/walls/stone_walls.png",
+    "house/walls/carved_stone.png",
+    "house/walls/marble_and_gold.png",
+]
+
+## The painted roofs of the stages, like [constant _WALL_PICTURES].
+const _ROOF_PICTURES := [
+    "house/roof/boards.png",
+    "house/roof/straw_roof.png",
+    "house/roof/wooden_shingles.png",
+    "house/roof/red_tiles.png",
+    "house/roof/slate_and_dormer.png",
+    "house/roof/golden_roof.png",
+]
+
+## The landscape of the painted house, without the shack (see
+## dev/pictures/prompts/house.md): when it is there, the house is drawn from the
+## painted pieces of the parts under assets/pictures/house/, at their places
+## (see dev/pictures/house/make_part_sheets.py), and only the parts which are
+## not painted yet are drawn in code.
+const _LANDSCAPE := "house/landscape.png"
+
+## The pictures of the stages of the parts which change stage by stage (the
+## first stage without a picture shows nothing).
+const _PAINTED_STAGES := {
+    "door":
+    ["shack_door", "plank_door", "oak_door", "iron_bound_door", "arched_gate", "gem_studded_gate"],
+    "windows":
+    ["hole", "shutters", "glass_windows", "flower_boxes", "stained_glass", "stained_glass"],
+    "chimney":
+    ["", "clay_pipe", "brick_chimney", "stone_chimney", "twin_chimneys", "forge_chimney"],
+    "tower":
+    ["", "lookout_post", "stone_tower", "tower_with_a_flag", "clock_tower", "crystal_spire"],
+    "fence": ["", "stick_fence", "picket_fence", "stone_wall", "iron_fence", "hedge_with_arches"],
+}
+
+## Where the painted walls and the windows of the shack are in the landscape:
+## the walls, the door and the window holes of the painting of the shack
+## (1905 x 825 px, scaled to the stage), around the painted pieces of the shack
+## (their frames reach a little beyond the holes).
+const _PAINTED_WALLS := Rect2(405, 268, 375, 173)
+const _PAINTED_DOOR := Rect2(533, 311, 116, 131)
+const _PAINTED_WINDOWS := [Rect2(412, 273, 130, 113), Rect2(646, 273, 130, 113)]
+const _PAINTED_ROOF_WIDTH := 428.0
+const _PAINTED_ROOF_MIDDLE := 592.0
+
+## The places of the other pieces; a piece keeps its proportions, as big as
+## fits into its place, standing on its bottom in its middle.
+const _PLACES := {
+    "rose_window": Rect2(560, 165, 64, 64),
+    "chimney": Rect2(700, 75, 48, 120),
+    "chimney_twin": Rect2(452, 75, 48, 120),
+    "tower": Rect2(800, 20, 120, 420),
+    "flowers": Rect2(285, 405, 120, 40),
+    "vegetable_beds": Rect2(270, 455, 130, 45),
+    "mushroom_patch": Rect2(20, 478, 60, 30),
+    "pond": Rect2(805, 462, 160, 42),
+    "fountain": Rect2(855, 395, 60, 85),
+    "timber_props": Rect2(56, 296, 160, 145),
+    "rails": Rect2(110, 425, 150, 90),
+    "mine_cart": Rect2(165, 440, 90, 62),
+    "lantern": Rect2(222, 300, 30, 50),
+    "lantern_mirrored": Rect2(20, 300, 30, 50),
+    "gem_gate": Rect2(50, 285, 170, 156),
+    "bench": Rect2(1080, 470, 80, 35),
+    "market_stall": Rect2(975, 430, 100, 85),
+    "well": Rect2(925, 357, 60, 85),
+    "bandstand": Rect2(1000, 270, 140, 170),
+    "statue_of_the_miners": Rect2(1145, 335, 50, 110),
+}
+
+## The fence spans its place from left to right, and stands on its bottom; it is
+## drawn this much lower than its proportions, since its posts are painted
+## chunky, and it must not hide the foot of the house.
+const _PAINTED_FENCE := Rect2(435, 440, 330, 78)
+const _FENCE_SQUASH := 0.8
+
+## A painted roof is this wide from eave to eave (as much wider than the walls as
+## in the painting of the shack, 679 to 595 px), and its eaves lie on this line,
+## a little below the top of the walls.
+const _ROOF_WIDTH := 410.0
+const _EAVES := 270.0
 
 ## Where the stage lies on the canvas, and how much it is scaled (for the
 ## pictures which set their own transform, see [method _square]).
@@ -35,6 +126,11 @@ static func draw(canvas: CanvasItem, rect: Rect2, stages: Dictionary, time: floa
     canvas.draw_set_transform(origin, 0.0, Vector2(k, k))
     var s := func(id: String) -> int: return int(stages.get(id, 0))
 
+    if ResourceLoader.exists(Art._PICTURES + _LANDSCAPE):
+        _draw_painted(canvas, s, time)
+        canvas.draw_set_transform(Vector2.ZERO)
+        return
+
     # The sky and the hills.
     Art._rounded(canvas, Rect2(0, 0, W, H).grow(6.0), 30.0, _OUTLINE)
     Art._rounded(canvas, Rect2(0, 0, W, H), 26.0, Color("#9fd2f0"))
@@ -47,8 +143,8 @@ static func draw(canvas: CanvasItem, rect: Rect2, stages: Dictionary, time: floa
     _mine_entrance(canvas, s.call("mine"), time)
     _tower(canvas, s.call("tower"), time)
     _chimney(canvas, s.call("chimney"), time)
-    _roof(canvas, s.call("roof"))
     _walls(canvas, s.call("walls"))
+    _roof(canvas, s.call("roof"))
     _windows(canvas, s.call("windows"))
     _door(canvas, s.call("door"))
     _garden(canvas, s.call("garden"), time)
@@ -133,6 +229,10 @@ static func _mine_entrance(canvas: CanvasItem, stage: int, time: float) -> void:
 ## carved stone, and marble with gold.
 static func _walls(canvas: CanvasItem, stage: int) -> void:
     var walls := Rect2(420, 260, 360, GROUND - 260)
+    var painted: String = _WALL_PICTURES[stage]
+    if ResourceLoader.exists(Art._PICTURES + painted):
+        canvas.draw_texture_rect(Art.picture(painted), walls, false)
+        return
     var colors := [
         Color("#8c8378"),
         Color("#9a6438"),
@@ -202,6 +302,14 @@ static func _walls(canvas: CanvasItem, stage: int) -> void:
 ## The roof: planks with holes, straw, wooden shingles, red tiles, slate with a
 ## dormer, and gold.
 static func _roof(canvas: CanvasItem, stage: int) -> void:
+    var painted: String = _ROOF_PICTURES[stage]
+    if ResourceLoader.exists(Art._PICTURES + painted):
+        var picture := Art.picture(painted)
+        var width := _ROOF_WIDTH
+        var height := width * picture.get_height() / picture.get_width()
+        var rect := Rect2(600 - width / 2.0, _EAVES - height, width, height)
+        canvas.draw_texture_rect(picture, rect, false)
+        return
     var left := Vector2(392, 268)
     var right := Vector2(808, 268)
     var apex := Vector2(600, 120)
@@ -395,19 +503,25 @@ static func _chimney(canvas: CanvasItem, stage: int, time: float) -> void:
                 canvas.draw_line(Vector2(x, y), Vector2(x + width, y), color.darkened(0.3), 2.0)
         if stage >= 2:
             _box(canvas, Rect2(x - 6, top - 10, width + 12, 14), color.darkened(0.2))
-        if stage >= 3:
-            for k in range(4):
-                var t := fmod(time * 0.4 + k * 0.25, 1.0)
-                var at := Vector2(x + width * 0.5 + sin(t * 6.0 + k) * 14.0, top - 20 - t * 110)
-                canvas.draw_circle(at, 12.0 + t * 20.0, Color(0.85, 0.85, 0.9, 0.55 * (1.0 - t)))
-        if stage >= 5:
-            for k in range(6):
-                var t := fmod(time * 0.9 + k / 6.0, 1.0)
-                canvas.draw_circle(
-                    Vector2(x + width * 0.5 + sin(k * 2.3) * 30.0 * t, top - 10 - t * 80),
-                    4.0,
-                    Color(1.0, 0.7, 0.2, 1.0 - t)
-                )
+        _smoke(canvas, Vector2(x + width * 0.5, top), stage, time)
+
+
+## The smoke over a chimney of the stage whose mouth is at the point (from the
+## stone chimney on), and the sparks over the forge chimney.
+static func _smoke(canvas: CanvasItem, mouth: Vector2, stage: int, time: float) -> void:
+    if stage >= 3:
+        for k in range(4):
+            var t := fmod(time * 0.4 + k * 0.25, 1.0)
+            var at := mouth + Vector2(sin(t * 6.0 + k) * 14.0, -20 - t * 110)
+            canvas.draw_circle(at, 12.0 + t * 20.0, Color(0.85, 0.85, 0.9, 0.55 * (1.0 - t)))
+    if stage >= 5:
+        for k in range(6):
+            var t := fmod(time * 0.9 + k / 6.0, 1.0)
+            canvas.draw_circle(
+                mouth + Vector2(sin(k * 2.3) * 30.0 * t, -10 - t * 80),
+                4.0,
+                Color(1.0, 0.7, 0.2, 1.0 - t)
+            )
 
 
 ## The tower right of the house: a lookout post on stilts, a stone tower, its
@@ -626,3 +740,131 @@ static func _square(canvas: CanvasItem, stage: int, time: float) -> void:
             {"facing": -1, "time": 0.0}
         )
         canvas.draw_set_transform(_origin, 0.0, Vector2(_scale, _scale))
+
+
+## Whether the painted piece of the part is there.
+static func _painted(part: String, piece: String) -> bool:
+    return piece != "" and ResourceLoader.exists(Art._PICTURES + "house/%s/%s.png" % [part, piece])
+
+
+## Draw the painted piece of the part into the rectangle.
+static func _put(canvas: CanvasItem, part: String, piece: String, rect: Rect2) -> void:
+    canvas.draw_texture_rect(Art.picture("house/%s/%s.png" % [part, piece]), rect, false)
+
+
+## Draw the painted piece of the part at its place (see [constant _PLACES]), as
+## big as fits, standing on the bottom of the place; return where it went.
+static func _place(
+    canvas: CanvasItem, part: String, piece: String, place: Rect2, mirrored := false
+) -> Rect2:
+    var name := piece + ("_mirrored" if mirrored else "")
+    var picture := Art.picture("house/%s/%s.png" % [part, name])
+    var size := Vector2(picture.get_width(), picture.get_height())
+    size *= minf(place.size.x / size.x, place.size.y / size.y)
+    var rect := Rect2(place.get_center().x - size.x / 2.0, place.end.y - size.y, size.x, size.y)
+    canvas.draw_texture_rect(picture, rect, false)
+    return rect
+
+
+## Draw the painted house: the landscape, and the painted pieces of the stages
+## of the parts at their places, back to front; a part which is not painted yet
+## is drawn in code.
+static func _draw_painted(canvas: CanvasItem, s: Callable, time: float) -> void:
+    Art._rounded(canvas, Rect2(0, 0, W, H).grow(6.0), 30.0, _OUTLINE)
+    canvas.draw_texture_rect(Art.picture(_LANDSCAPE), Rect2(0, 0, W, H), false)
+
+    var mine: int = s.call("mine")
+    if mine >= 1:
+        _place(canvas, "mine", "timber_props", _PLACES["timber_props"])
+    if mine >= 4:
+        for lantern in [["lantern", false], ["lantern_mirrored", true]]:
+            var glow := 0.75 + 0.25 * sin(time * 3.0 + (1.0 if lantern[1] else 0.0))
+            var place: Rect2 = _PLACES[lantern[0]]
+            canvas.draw_circle(
+                place.get_center() + Vector2(0, place.size.y * 0.2),
+                30.0,
+                Color(1, 0.85, 0.4, 0.22 * glow)
+            )
+            _place(canvas, "mine", "lantern", place, lantern[1])
+    if mine >= 5:
+        _place(canvas, "mine", "gem_gate", _PLACES["gem_gate"])
+    if mine >= 2:
+        _place(canvas, "mine", "rails", _PLACES["rails"])
+    if mine >= 3:
+        _place(canvas, "mine", "mine_cart", _PLACES["mine_cart"])
+
+    var tower: int = s.call("tower")
+    var tower_piece: String = _PAINTED_STAGES["tower"][tower]
+    if _painted("tower", tower_piece):
+        _place(canvas, "tower", tower_piece, _PLACES["tower"])
+    else:
+        _tower(canvas, tower, time)
+
+    var chimney: int = s.call("chimney")
+    var chimney_piece: String = _PAINTED_STAGES["chimney"][chimney]
+    if _painted("chimney", chimney_piece):
+        var places := [_PLACES["chimney"]]
+        if chimney >= 4:
+            places.append(_PLACES["chimney_twin"])
+        for place in places:
+            var rect := _place(canvas, "chimney", chimney_piece, place)
+            _smoke(canvas, Vector2(rect.get_center().x, rect.position.y), chimney, time)
+
+    var walls: String = (_WALL_PICTURES[s.call("walls")] as String).get_file().get_basename()
+    _put(canvas, "walls", walls, _PAINTED_WALLS)
+    var roof := Art.picture(_ROOF_PICTURES[s.call("roof")])
+    var roof_height := _PAINTED_ROOF_WIDTH * roof.get_height() / roof.get_width()
+    canvas.draw_texture_rect(
+        roof,
+        Rect2(
+            _PAINTED_ROOF_MIDDLE - _PAINTED_ROOF_WIDTH / 2.0,
+            _EAVES - roof_height,
+            _PAINTED_ROOF_WIDTH,
+            roof_height
+        ),
+        false
+    )
+
+    var windows: int = s.call("windows")
+    for rect in _PAINTED_WINDOWS:
+        _put(canvas, "windows", _PAINTED_STAGES["windows"][windows], rect)
+    if windows >= 5:
+        _place(canvas, "windows", "rose_window", _PLACES["rose_window"])
+    _put(canvas, "door", _PAINTED_STAGES["door"][s.call("door")], _PAINTED_DOOR)
+
+    var garden: int = s.call("garden")
+    var garden_pieces := ["flowers", "vegetable_beds", "mushroom_patch", "pond", "fountain"]
+    for k in range(garden):
+        _place(canvas, "garden", garden_pieces[k], _PLACES[garden_pieces[k]])
+
+    # NOTE (mristin):
+    # The pieces of the square, back to front: the bandstand, the well and the
+    # statue stand on the ground line, the bench and the market stall in front.
+    var square: int = s.call("square")
+    for at in [
+        [4, "bandstand"],
+        [3, "well"],
+        [5, "statue_of_the_miners"],
+        [1, "bench"],
+        [2, "market_stall"]
+    ]:
+        if square >= at[0]:
+            _place(canvas, "square", at[1], _PLACES[at[1]])
+
+    var fence_piece: String = _PAINTED_STAGES["fence"][s.call("fence")]
+    if _painted("fence", fence_piece):
+        var picture := Art.picture("house/fence/%s.png" % fence_piece)
+        var height := (
+            _PAINTED_FENCE.size.x * picture.get_height() / picture.get_width() * _FENCE_SQUASH
+        )
+        _put(
+            canvas,
+            "fence",
+            fence_piece,
+            Rect2(
+                _PAINTED_FENCE.position.x,
+                _PAINTED_FENCE.end.y - height,
+                _PAINTED_FENCE.size.x,
+                height
+            )
+        )

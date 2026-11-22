@@ -9,6 +9,13 @@ mole_sprites_corrected/, the evil miner into evil_miner_sprites/) and run:
 
     python3 dev/pictures/cut_sprites.py <folder with the sheets>
 
+The sheets of the dwarves' house are cut by themselves, from a folder with one
+folder per sheet (the walls in walls/walls_sheet.png, the roof in
+roof/roof_sheet.png, the other parts in <part>/<part>_sheet.png, and the
+landscape without the shack in landscape/landscape.png):
+
+    python3 dev/pictures/cut_sprites.py --house <folder with the house sheets>
+
 Every sheet is a grid of equal cells. We cut the cells, scale them to twice
 their size in the game (the game draws them at half), and keep their
 transparency. The dwarves keep their whole cells, so that their feet stay on
@@ -19,9 +26,9 @@ common bounding box.
 import argparse
 import pathlib
 import sys
-from typing import Final, List, Set, Tuple
+from typing import Final, List, Optional, Set, Tuple
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 OUTPUT = REPO / "assets" / "pictures"
@@ -321,14 +328,375 @@ def cut_evil_miner(load) -> None:
         )
 
 
+#: The stages of the walls of the dwarves' house, in the cells of their sheet
+#: (3 x 2 cells, see dev/pictures/house/make_house_sketch.py): the planks of
+#: the shack, and the five stages which the players build.
+HOUSE_WALLS: Final[List[str]] = [
+    "planks",
+    "log_walls",
+    "timber_frame",
+    "stone_walls",
+    "carved_stone",
+    "marble_and_gold",
+]
+
+#: The sheet of the walls, in the folder of the house sheets.
+HOUSE_WALLS_SHEET: Final[str] = "walls/walls_sheet.png"
+
+#: The walls are this wide (in px), twice as wide as the game draws them.
+HOUSE_WALL_WIDTH: Final[int] = 720
+
+#: The stages of the roof, in the cells of its sheet (3 x 2 cells): the boards of
+#: the shack, and the five stages which the players build.
+HOUSE_ROOFS: Final[List[str]] = [
+    "boards",
+    "straw_roof",
+    "wooden_shingles",
+    "red_tiles",
+    "slate_and_dormer",
+    "golden_roof",
+]
+
+#: The sheet of the roof, in the folder of the house sheets.
+HOUSE_ROOF_SHEET: Final[str] = "roof/roof_sheet.png"
+
+#: The roofs are this wide (in px), about twice as wide as the game draws them.
+HOUSE_ROOF_WIDTH: Final[int] = 820
+
+#: A pixel of a painted checkerboard is this light (in every channel), and its
+#: channels differ by less than this.
+CHECKER_LIGHT: Final[int] = 200
+CHECKER_GREY: Final[int] = 20
+
+#: A pixel of a flat magenta background (#FF00FF, which the prompts ask for
+#: when the image generator cannot make the background transparent) has red and
+#: blue above this, and green below that.
+MAGENTA_STRONG: Final[int] = 200
+MAGENTA_GREEN: Final[int] = 90
+
+
+def without_checkerboard(cell: Image.Image) -> Image.Image:
+    """
+    Make the background of the cell transparent, if the image generator painted
+    a light checkerboard (or a flat magenta) instead of leaving it transparent.
+
+    We flood the light grey (or magenta) pixels from the edges of the cell, which stop at the
+    dark outline of the piece, so that the light parts inside the piece (e.g.,
+    the frames of a window) stay; the pixels at the border of the flood fade
+    out, so that the outline keeps its soft edge.
+    """
+    if cell.getchannel("A").getextrema()[0] < 255:
+        return cell
+    width, height = cell.size
+    rgb = cell.convert("RGB").load()
+    light = Image.new("L", cell.size, 0)
+    marks = light.load()
+    for y in range(height):
+        for x in range(width):
+            r, g, b = rgb[x, y]
+            checker = min(r, g, b) > CHECKER_LIGHT and max(r, g, b) - min(r, g, b) < CHECKER_GREY
+            magenta = r > MAGENTA_STRONG and b > MAGENTA_STRONG and g < MAGENTA_GREEN
+            if checker or magenta:
+                marks[x, y] = 255
+    for x, y in [(x, 0) for x in range(width)] + [(x, height - 1) for x in range(width)]:
+        if marks[x, y] == 255:
+            ImageDraw.floodfill(light, (x, y), 128, thresh=0)
+    for x, y in [(0, y) for y in range(height)] + [(width - 1, y) for y in range(height)]:
+        if marks[x, y] == 255:
+            ImageDraw.floodfill(light, (x, y), 128, thresh=0)
+    alpha = light.point(lambda v: 0 if v == 128 else 255).filter(ImageFilter.MinFilter(3))
+    alpha = alpha.filter(ImageFilter.GaussianBlur(0.8))
+    result = cell.copy()
+    result.putalpha(alpha)
+    return result
+
+
+def body_box(cell: Image.Image) -> Tuple[int, int, int, int]:
+    """
+    The box of the solid body of the cell: the rows and the columns which are
+    opaque over a good part of it, without the specks of paint around it.
+    """
+    alpha = cell.getchannel("A")
+    width, height = cell.size
+    pixels = alpha.load()
+    rows = [y for y in range(height) if sum(pixels[x, y] > 200 for x in range(width)) > width // 8]
+    cols = [x for x in range(width) if sum(pixels[x, y] > 200 for y in range(height)) > height // 8]
+    # NOTE (mristin):
+    # The soft edge of the outline lies outside the solid rows and columns.
+    margin = 3
+    return (
+        max(0, cols[0] - margin),
+        max(0, rows[0] - margin),
+        min(width, cols[-1] + 1 + margin),
+        min(height, rows[-1] + 1 + margin),
+    )
+
+
+class HouseSheet:
+    """A sheet of the pieces of a part of the dwarves' house."""
+
+    #: The part (the folder of the sheet, and of its pictures under house/).
+    part: Final[str]
+
+    #: The grid of the sheet.
+    columns: Final[int]
+    rows: Final[int]
+
+    #: The pieces, in the order of the cells.
+    pieces: Final[List[str]]
+
+    #: The pieces which share one box (the stages which replace each other, so
+    #: that they stay in place against each other); the others are cut to
+    #: their own outlines.
+    shared: Final[List[str]]
+
+    #: The longest side of the pictures, in px (about twice as long as the game
+    #: draws them).
+    longest: Final[int]
+
+    def __init__(
+        self,
+        part: str,
+        columns: int,
+        rows: int,
+        pieces: List[str],
+        shared: List[str],
+        longest: int,
+    ) -> None:
+        self.part = part
+        self.columns = columns
+        self.rows = rows
+        self.pieces = pieces
+        self.shared = shared
+        self.longest = longest
+
+
+#: The sheets of the parts (see dev/pictures/house/make_part_sheets.py), each in
+#: ``<part>/<part>_sheet.png`` of the folder of the house sheets.
+HOUSE_SHEETS: Final[List[HouseSheet]] = [
+    HouseSheet(
+        "door",
+        3,
+        2,
+        _door := [
+            "shack_door",
+            "plank_door",
+            "oak_door",
+            "iron_bound_door",
+            "arched_gate",
+            "gem_studded_gate",
+        ],
+        _door,
+        280,
+    ),
+    HouseSheet(
+        "windows",
+        3,
+        2,
+        ["hole", "shutters", "glass_windows", "flower_boxes", "stained_glass", "rose_window"],
+        ["hole", "shutters", "glass_windows", "flower_boxes", "stained_glass"],
+        280,
+    ),
+    HouseSheet(
+        "chimney",
+        3,
+        2,
+        _chimney := [
+            "clay_pipe",
+            "brick_chimney",
+            "stone_chimney",
+            "twin_chimneys",
+            "forge_chimney",
+        ],
+        _chimney,
+        260,
+    ),
+    HouseSheet(
+        "tower",
+        3,
+        2,
+        _tower := [
+            "lookout_post",
+            "stone_tower",
+            "tower_with_a_flag",
+            "clock_tower",
+            "crystal_spire",
+        ],
+        _tower,
+        880,
+    ),
+    HouseSheet(
+        "fence",
+        3,
+        2,
+        _fence := [
+            "stick_fence",
+            "picket_fence",
+            "stone_wall",
+            "iron_fence",
+            "hedge_with_arches",
+        ],
+        _fence,
+        820,
+    ),
+    HouseSheet(
+        "garden",
+        3,
+        2,
+        ["flowers", "vegetable_beds", "mushroom_patch", "pond", "fountain"],
+        [],
+        330,
+    ),
+    HouseSheet(
+        "mine",
+        3,
+        2,
+        ["timber_props", "rails", "mine_cart", "lantern", "gem_gate"],
+        [],
+        440,
+    ),
+    HouseSheet(
+        "square",
+        3,
+        2,
+        ["bench", "market_stall", "well", "bandstand", "statue_of_the_miners"],
+        [],
+        360,
+    ),
+]
+
+#: The pieces which the game draws mirrored, too (the lantern hangs on both
+#: sides of the mine entrance, its hook towards the entrance).
+HOUSE_MIRRORED: Final[List[Tuple[str, str]]] = [("mine", "lantern")]
+
+#: Pixels more transparent than this are cleared: some sheets come with a faint
+#: haze over their transparent background.
+HAZE: Final[int] = 40
+
+#: Light grey pixels more transparent than this are a haze, too.
+HAZE_LIGHT: Final[int] = 200
+
+
+def piece_box(cell: Image.Image) -> Optional[Tuple[int, int, int, int]]:
+    """
+    The box of the piece in the cell: the rows and the columns with at least a
+    few opaque pixels, so that a lone speck of paint does not stretch it.
+    """
+    alpha = cell.getchannel("A").point(lambda a: 1 if a > 64 else 0)
+    width, height = cell.size
+    pixels = alpha.load()
+    rows = [y for y in range(height) if sum(pixels[x, y] for x in range(width)) >= 3]
+    cols = [x for x in range(width) if sum(pixels[x, y] for y in range(height)) >= 3]
+    if not rows or not cols:
+        return None
+    return (
+        max(0, cols[0] - 2),
+        max(0, rows[0] - 2),
+        min(width, cols[-1] + 3),
+        min(height, rows[-1] + 3),
+    )
+
+
+def without_haze(cell: Image.Image) -> Image.Image:
+    """
+    Clear the nearly transparent pixels of the cell, and the light grey haze:
+    the half transparent pixels of a light grey (a piece painted white, like a
+    picket fence, is opaque).
+    """
+    rgb = cell.convert("RGB").load()
+    alpha = cell.getchannel("A")
+    pixels = alpha.load()
+    width, height = cell.size
+    for y in range(height):
+        for x in range(width):
+            a = pixels[x, y]
+            if a == 0:
+                continue
+            r, g, b = rgb[x, y]
+            light = min(r, g, b) > CHECKER_LIGHT and max(r, g, b) - min(r, g, b) < CHECKER_GREY
+            if a < HAZE or (light and a < HAZE_LIGHT):
+                pixels[x, y] = 0
+    result = cell.copy()
+    result.putalpha(alpha)
+    return result
+
+
+def cut_house_sheet(load, sheet: HouseSheet) -> None:
+    """Cut the sheet of a part of the house into its pieces."""
+    path = f"{sheet.part}/{sheet.part}_sheet.png"
+    grid = cells(load(path), sheet.columns, sheet.rows)
+    found = {
+        name: without_haze(without_checkerboard(cell)) for name, cell in zip(sheet.pieces, grid)
+    }
+    boxes = {name: piece_box(cell) for name, cell in found.items()}
+    shared = [boxes[name] for name in sheet.shared if boxes[name] is not None]
+    if shared:
+        common = (
+            min(box[0] for box in shared),
+            min(box[1] for box in shared),
+            max(box[2] for box in shared),
+            max(box[3] for box in shared),
+        )
+        for name in sheet.shared:
+            boxes[name] = common
+    for name in sheet.pieces:
+        if boxes[name] is None:
+            print(f"{path}: the cell of {name} is empty")
+            continue
+        piece = fit(found[name].crop(boxes[name]), sheet.longest)
+        save(piece, f"house/{sheet.part}/{name}.png")
+        if (sheet.part, name) in HOUSE_MIRRORED:
+            save(piece.transpose(Image.FLIP_LEFT_RIGHT), f"house/{sheet.part}/{name}_mirrored.png")
+
+
+def cut_house(load) -> None:
+    """Cut the sheets of the dwarves' house (see dev/pictures/prompts/house.md)."""
+    for stage, cell in zip(HOUSE_WALLS, cells(load(HOUSE_WALLS_SHEET), 3, 2)):
+        wall = cell.crop(body_box(cell))
+        height = round(wall.height * HOUSE_WALL_WIDTH / wall.width)
+        save(wall.resize((HOUSE_WALL_WIDTH, height), Image.LANCZOS), f"house/walls/{stage}.png")
+
+    roofs = [without_checkerboard(cell) for cell in cells(load(HOUSE_ROOF_SHEET), 3, 2)]
+    # NOTE (mristin):
+    # All the roofs share one box, so that their eaves lie on the same line
+    # and the ornament of the golden roof does not shrink it.
+    box = common_box(roofs)
+    for stage, roof in zip(HOUSE_ROOFS, roofs):
+        roof = roof.crop(box)
+        height = round(roof.height * HOUSE_ROOF_WIDTH / roof.width)
+        save(roof.resize((HOUSE_ROOF_WIDTH, height), Image.LANCZOS), f"house/roof/{stage}.png")
+
+    for sheet in HOUSE_SHEETS:
+        if sheet.part == "tower" and not (load.folder / "tower/tower_sheet.png").exists():
+            print("The tower is not painted yet; the game draws it in code.")
+            continue
+        cut_house_sheet(load, sheet)
+
+    # NOTE (mristin):
+    # The landscape of the painted shack, without the shack, behind all the parts.
+    landscape = load("landscape/landscape.png").convert("RGB")
+    save(landscape.resize((2400, 1040), Image.LANCZOS), "house/landscape.png")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", help="the folder with the unpacked sheets")
+    parser.add_argument(
+        "--house",
+        action="store_true",
+        help="cut only the sheets of the dwarves' house, from a folder with one folder per sheet",
+    )
     args = parser.parse_args()
     source = pathlib.Path(args.folder)
 
     def load(relative: str) -> Image.Image:
         return Image.open(source / relative).convert("RGBA")
+
+    load.folder = source  # type: ignore[attr-defined]
+
+    if args.house:
+        cut_house(load)
+        return 0
 
     for color, sheet in DWARF_SHEETS.items():
         for pose, cell in zip(DWARF_POSES, cells(load(sheet), 4, 3)):

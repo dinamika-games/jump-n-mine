@@ -219,7 +219,7 @@ func _check_fire() -> void:
     _check(stunned, "the fire of the dragon makes a dwarf who stands still dizzy")
     mine = Mine.new(_plain({"dragons": [1.0, 1.0], "dragons_from": 0.0}), 1)
     dwarf = mine.dwarves[0]
-    mine.active["helmet"] = 100.0
+    mine.active["helmet"] = true
     var shielded := false
     for k in range(int(6.0 / DT)):
         mine.step(DT)
@@ -250,6 +250,9 @@ func _check_boosters() -> void:
     _wait(mine, 0.6)
     _check(MineBoosters.has(mine, "gold_pick"), "the golden pickaxe starts on the rock")
     _check(mine.hits_left[mine.index(5, y)] == 2, "the golden pickaxe hits twice")
+    _wait(mine, 60.0)
+    _check(MineBoosters.has(mine, "gold_pick"), "the golden pickaxe lasts the whole level")
+    _check(int(mine.charges["gold_pick"]) == 0, "the golden pickaxe is used up once")
 
     mine.water_total = 0.0
     for k in range(mine.water.size()):
@@ -260,6 +263,9 @@ func _check_boosters() -> void:
     mine.step(DT)
     _check(mine.flood_level() < Mine.PUMP_AT, "the pump from the shop starts when the water rises")
     _check(int(mine.charges["pump"]) == 0, "the pump is used up")
+    mine.water_total = flood * (Mine.PUMP_AT + 0.05)
+    mine.step(DT)
+    _check(mine.flood_level() < Mine.PUMP_AT, "the pump pumps again in the same level")
 
 
 func _check_moles() -> void:

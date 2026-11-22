@@ -55,7 +55,8 @@ const FIT := {5: 0.68}
 ## 1080), how much it is tilted (in radians), and its text. The painter leaves
 ## the signs blank, since a painted text comes out garbled.
 const SIGNS := {
-    1: [
+    1:
+    [
         {"at": Vector2(276, 445), "angle": -0.075, "text": "LESS\nWORK!"},
         {"at": Vector2(581, 472), "angle": -0.077, "text": "TASTY\nBREAD!"},
         {"at": Vector2(837, 490), "angle": -0.026, "text": "SCHOOL\nFOR ALL!"},

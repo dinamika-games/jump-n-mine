@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 using Microsoft.ML.OnnxRuntime;
@@ -44,6 +45,9 @@ namespace JumpNMine.Vision
         private readonly string[] _outputNames = { "simcc_x", "simcc_y" };
         private readonly float[] _input = new float[3 * InputWidth * InputHeight];
         private readonly OrtValue _inputValue;
+
+        /// <summary>The input of a batch of players (see <see cref="EstimateMany"/>), grown as needed.</summary>
+        private float[] _batchInput = Array.Empty<float>();
 
         public RtmPoseModel(byte[] model, int threads = 2)
         {
@@ -107,6 +111,62 @@ namespace JumpNMine.Vision
                 frame.Width,
                 frame.Height
             );
+        }
+
+        /// <summary>
+        /// Estimate the poses of the players in the boxes (normalized to the
+        /// mirrored picture), in one run of the model with a batch of all the
+        /// players, which costs less than a run per player.
+        /// </summary>
+        public Pose[] EstimateMany(Frame frame, IReadOnlyList<BoundingBox> mirroredPlayers)
+        {
+            int count = mirroredPlayers.Count;
+            if (count == 0)
+            {
+                return Array.Empty<Pose>();
+            }
+            if (count == 1)
+            {
+                return new[] { Estimate(frame, mirroredPlayers[0]) };
+            }
+
+            const int size = 3 * InputWidth * InputHeight;
+            if (_batchInput.Length < count * size)
+            {
+                _batchInput = new float[count * size];
+            }
+            var crops = new BoundingBox[count];
+            var single = new float[size];
+            for (int i = 0; i < count; i++)
+            {
+                crops[i] = Crop(frame, mirroredPlayers[i]);
+                Preprocess(frame, crops[i], single);
+                Array.Copy(single, 0, _batchInput, i * size, size);
+            }
+
+            using var input = OrtValue.CreateTensorValueFromMemory(
+                OrtMemoryInfo.DefaultInstance,
+                new Memory<float>(_batchInput, 0, count * size),
+                new long[] { count, 3, InputHeight, InputWidth }
+            );
+            using var outputs = _session.Run(_runOptions, _inputNames, new[] { input }, _outputNames);
+            var simccX = outputs[0].GetTensorDataAsSpan<float>();
+            var simccY = outputs[1].GetTensorDataAsSpan<float>();
+            int lengthX = simccX.Length / count;
+            int lengthY = simccY.Length / count;
+
+            var result = new Pose[count];
+            for (int i = 0; i < count; i++)
+            {
+                result[i] = Decode(
+                    simccX.Slice(i * lengthX, lengthX),
+                    simccY.Slice(i * lengthY, lengthY),
+                    crops[i],
+                    frame.Width,
+                    frame.Height
+                );
+            }
+            return result;
         }
 
         /// <summary>
