@@ -23,7 +23,7 @@ const FRAMES: Array[String] = [
         + " and share them with all the people."
     ),
     (
-        "The people want better lives: fair work, tasty bread and a school for every "
+        "The people want better lives: less work, tasty bread and a school for every "
         + "child. The miners stand with them."
     ),
     (
@@ -49,6 +49,22 @@ const FRAMES: Array[String] = [
 ## the caption would cover it (the treasure in the last frame); the whole
 ## picture, darkened, fills the screen behind it.
 const FIT := {5: 0.68}
+
+## The demands which the people write on their signs, by the frame index:
+## where the middle of each sign lies in the picture (in its pixels, 1920 x
+## 1080), how much it is tilted (in radians), and its text. The painter leaves
+## the signs blank, since a painted text comes out garbled.
+const SIGNS := {
+    1: [
+        {"at": Vector2(276, 445), "angle": -0.075, "text": "LESS\nWORK!"},
+        {"at": Vector2(581, 472), "angle": -0.077, "text": "TASTY\nBREAD!"},
+        {"at": Vector2(837, 490), "angle": -0.026, "text": "SCHOOL\nFOR ALL!"},
+        {"at": Vector2(1070, 450), "angle": -0.073, "text": "BETTER\nLIVES!"},
+    ],
+}
+
+## The size of the font on the signs, in the pixels of the picture.
+const SIGN_FONT_SIZE := 38
 
 ## The seconds between two words of a caption: about 150 words a minute, as
 ## fast as a child of ten reads.
@@ -242,6 +258,7 @@ func _draw_behind_cards() -> void:
             rect = Rect2(Vector2((area.x - fitted.x) / 2.0, area.y * 0.02), fitted)
             draw_rect(rect.grow(6.0), Color(Art.OUTLINE, fade))
         draw_texture_rect(picture, rect, false, Color(1, 1, 1, fade))
+        _draw_signs(rect, fade)
     var band := Rect2(0, area.y * BAND_TOP, area.x, area.y * (1.0 - BAND_TOP))
     draw_rect(band, Color(0.05, 0.03, 0.06, 0.78))
 
@@ -268,3 +285,31 @@ func _draw_behind_cards() -> void:
             area.x / 2.0 + (k - (FRAMES.size() - 1) / 2.0) * 30.0, band.position.y + 16
         )
         draw_circle(dot, 8.0, Color("#ffe2a0") if k == _frame else Color(1, 1, 1, 0.3))
+
+
+## Write the demands on the signs of the frame, over its picture in the
+## rectangle (see [constant SIGNS]).
+func _draw_signs(rect: Rect2, fade: float) -> void:
+    var scale := rect.size.x / 1920.0
+    var color := Color("#5a2e1a", fade)
+    for sign in SIGNS.get(_frame, []):
+        draw_set_transform(
+            rect.position + Vector2(sign["at"]) * scale, float(sign["angle"]), Vector2(scale, scale)
+        )
+        var lines: PackedStringArray = str(sign["text"]).split("\n")
+        var line_height := SIGN_FONT_SIZE * 1.15
+        var top := -lines.size() * line_height / 2.0 + SIGN_FONT_SIZE * 0.85
+        for k in range(lines.size()):
+            var width := (
+                _font.get_string_size(lines[k], HORIZONTAL_ALIGNMENT_LEFT, -1, SIGN_FONT_SIZE).x
+            )
+            draw_string(
+                _font,
+                Vector2(-width / 2.0, top + k * line_height),
+                lines[k],
+                HORIZONTAL_ALIGNMENT_LEFT,
+                -1,
+                SIGN_FONT_SIZE,
+                color
+            )
+    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
