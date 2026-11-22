@@ -2,7 +2,7 @@
 Write the sketches of the sheets of the puzzle gate and of the menu icons.
 
 The sketches tell the image generator where to paint each piece, so that
-``cut_sprites.py`` can cut the pieces apart by their boxes:
+``cut_sprites/gate_and_icons.py`` can cut the pieces apart by their boxes:
 
 * ``sketch_gate_sheet.svg``: the iron gate tile and the stone plate, up and
   pressed, as square tiles of the mine.

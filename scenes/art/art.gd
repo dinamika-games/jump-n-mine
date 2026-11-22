@@ -2,7 +2,7 @@ class_name Art
 extends RefCounted
 
 ## The pictures of the game: the painted sprites of assets/pictures/ (cut by
-## dev/pictures/cut_sprites.py), drawn at the size the game needs.
+## dev/pictures/cut_sprites/), drawn at the size the game needs.
 ##
 ## Every function draws on the canvas item at a position in pixels, so that the
 ## menus and the level share them.
