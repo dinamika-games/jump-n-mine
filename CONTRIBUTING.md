@@ -71,7 +71,7 @@ The sketch of the dwarves' house (`sketch_house_base.svg`, before any improvemen
 
 The sketches of the iron gate with its stone plates and of the icons of the menu cards are written by `python3 dev/pictures/make_gate_and_icon_sketches.py <folder>` (into `gate/` and `icons/`); put the painted sheets next to them as `gate/gate_sheet.png` and `icons/icon_sheet.png`, and `python3 dev/pictures/cut_sprites/cut_gate_and_icons.py <folder>` cuts them.
 
-To review the shaders of the gas and the explosions, run `$GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 --script dev/pictures/effects_preview.gd -- <folder>`; to review where the miner's helmets sit on the heads, `dev/pictures/hat_preview.gd` (see its docstring).
+To review the shaders of the gas, the explosions and the water, run `$GODOT --audio-driver Dummy --path . --windowed --resolution 1920x1080 --script dev/pictures/effects_preview.gd -- <folder>`; to review where the miner's helmets sit on the heads, `dev/pictures/hat_preview.gd` (see its docstring).
 
 To review all the screens at once (the intro, the story, the shop, the house, how to play and levels which bots play), take their screenshots on a virtual display, so that no window opens and no sound plays:
 
