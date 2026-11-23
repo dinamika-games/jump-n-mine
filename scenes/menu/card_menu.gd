@@ -315,8 +315,19 @@ func _draw_card(i: int, focused: bool) -> void:
     var text_color := Color("#8a8090") if disabled else Color.WHITE
     if rect.size.y < 300.0:
         # NOTE (mristin):
-        # A low card has only its title, on a lighter band inside the card.
+        # A low card has only its title, on a lighter band inside the card, and
+        # its icon (if any) over the title.
         Art._rounded(self, rect.grow(-10.0), 16.0, color.lightened(0.12))
+        if card.has("icon"):
+            var box := Rect2(rect.position + Vector2(18, 16), Vector2(rect.size.x - 36, 100))
+            _draw_icon(str(card["icon"]), box.get_center(), disabled, box.size)
+            _text_wrapped(
+                str(card["title"]),
+                Rect2(rect.position.x + 12, rect.position.y + 122, rect.size.x - 24, 80),
+                30,
+                text_color
+            )
+            return
         _text_wrapped(
             str(card["title"]),
             Rect2(
@@ -375,8 +386,12 @@ func _draw_heads() -> void:
 ## Draw an icon of the menus: "play", "new", "continue", "expedition",
 ## "dwarves:<n>", "world:<i>", "level:<i>", "lock", "trash", "back", "keep",
 ## "question", "quit", "again", "next", "levels", "ok", "booster:<kind>", "shop",
-## "house", "story".
-func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
+## "house", "house_stage:<part>:<stage>" (the painted piece of the stage of the
+## part of the house, see [method HouseArt.stage_picture], as big as fits into
+## the box), "story".
+func _draw_icon(
+    icon: String, center: Vector2, disabled: bool, box := Vector2(ICON_SIZE, ICON_SIZE)
+) -> void:
     var parts := icon.split(":")
     var kind := parts[0]
     var argument := int(parts[1]) if parts.size() > 1 else 0
@@ -467,6 +482,13 @@ func _draw_icon(icon: String, center: Vector2, disabled: bool) -> void:
                 session.purse.house if session != null else {},
                 _time
             )
+        "house_stage":
+            var path := HouseArt.stage_picture(argument, int(parts[2]) if parts.size() > 2 else 0)
+            if path != "":
+                var picture := Art.picture(path)
+                var size := Vector2(picture.get_width(), picture.get_height())
+                size *= minf(box.x / size.x, box.y / size.y)
+                draw_texture_rect(picture, Rect2(center - size / 2.0, size), false, dim)
         "story":
             Art.dwarf(self, center + Vector2(-50, 70), 120.0, 0, {"facing": 1, "time": _time})
             Art.dwarf(

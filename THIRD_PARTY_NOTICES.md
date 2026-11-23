@@ -106,7 +106,6 @@ We distribute the model unmodified.
 | `select` | [Click.wav](https://freesound.org/s/256116/) | kwahmah_02 |
 | `click` | [UI Button Click](https://freesound.org/s/467951/) | benzix2 |
 | `won` | [Tada Fanfare A](https://freesound.org/s/397355/) | plasterbrain |
-| `flooded` | [Fail Sound (Wa-Wa-Wah)](https://freesound.org/s/834512/) | YoshikaMiyafuji |
 
 We thank the authors for giving their recordings to the public domain, even though CC0 does not ask for it.
 

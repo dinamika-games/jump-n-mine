@@ -8,8 +8,10 @@ extends RefCounted
 ##
 ## He arrives a moment after the first dwarf, on the grass on the other side.
 ## His pace adapts to the players: he digs down a little slower than they did
-## over the last [constant WINDOW] seconds, and waits close behind them, but
-## when they stop digging, he digs on like the tortoise and overtakes them. A
+## over the last [constant WINDOW] seconds; close behind them, he does not stop,
+## but digs on slowly and steadily, and waits only once he caught up with them,
+## pacing left and right.
+## When they stop digging, he digs on like the tortoise and overtakes them. A
 ## dwarf who hits him knocks him out; he knocks out a dwarf beside him now and
 ## then. He presses no plates, but pries a bar out of a closed gate.
 
@@ -37,12 +39,16 @@ const PACE := 0.8
 const TORTOISE_PERIOD := 4.0
 const FASTEST := 1.6
 
-## Closer than this many rows behind the players' deepest dwarf, he waits (he
-## also falls down the shafts which the dwarves dug), unless the players
-## stopped: their deepest dwarf came less than [constant STOPPED_ROWS] deeper
-## in the last [constant STOPPED_WINDOW] seconds. Then he digs on like the
-## tortoise, and overtakes them.
+## Closer than [constant LAG] rows behind the players' deepest dwarf, he digs
+## on slowly and steadily, a jump every [constant STEADY_PERIOD] seconds, and
+## closer than [constant CAUGHT_UP] rows, he waits (he also falls down the
+## shafts which the dwarves dug), unless the players stopped: their deepest
+## dwarf came less than [constant STOPPED_ROWS] deeper in the last [constant
+## STOPPED_WINDOW] seconds. Then he digs on like the tortoise, and overtakes
+## them.
 const LAG := 4.0
+const STEADY_PERIOD := 3.0
+const CAUGHT_UP := 0.5
 const STOPPED_ROWS := 1.0
 const STOPPED_WINDOW := 12
 
@@ -107,7 +113,7 @@ func update(mine: Mine, dt: float) -> void:
     var rival := mine.rival
     mine.move_dwarf(rival, dt)
     _pace(mine, dt)
-    waits = rival.pos.y >= _frontier_now(mine) - LAG and not _stopped
+    waits = rival.pos.y >= _frontier_now(mine) - CAUGHT_UP and not _stopped
 
     _hit_in = maxf(0.0, _hit_in - dt)
     if rival.stun <= 0.0 and _hit_in <= 0.0 and not waits:
@@ -180,8 +186,11 @@ func _pace(mine: Mine, dt: float) -> void:
         _frontier.size() > STOPPED_WINDOW
         and _frontier[-1] - _frontier[-1 - STOPPED_WINDOW] < STOPPED_ROWS
     )
-    if _stopped or mine.rival.pos.y >= frontier - LAG:
+    if _stopped:
         period = TORTOISE_PERIOD
+        return
+    if mine.rival.pos.y >= frontier - LAG:
+        period = STEADY_PERIOD
         return
     if _frontier.size() < 6:
         return

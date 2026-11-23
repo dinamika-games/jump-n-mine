@@ -17,7 +17,7 @@ extends RefCounted
 
 enum Cell { AIR, DIRT, ROCK, BEDROCK, GAS, SPRING, SEALED, GATE, PLATE }
 
-enum State { PLAYING, WON, FLOODED, LOST }
+enum State { PLAYING, WON, LOST }
 
 ## At most this many dwarves dig together.
 const MAX_DWARVES := 4
@@ -47,9 +47,10 @@ const SIDE_REACH := 0.35
 ## [MineBoosters]).
 const BOOSTERS := ["gold_pick", "helmet", "boots", "pump"]
 
-## The pump starts by itself when the mine is this full of water, and pumps
-## again whenever the mine fills up this far.
-const PUMP_AT := 0.6
+## How many cells of water a spring holds (times [constant AREA_SCALE]): it
+## runs dry once it poured them out. The mine never floods; the water only
+## slows the dwarves down, and spreads thinner the more they dig.
+const SPRING_WATER := 12.0
 
 ## The slot of the evil miner of Queen Treacher (see [member rival]); the slots
 ## 0 to 3 are the players'.
@@ -190,6 +191,8 @@ var events: Array[Dictionary] = []
 var puzzles := MinePuzzles.new()
 ## The springs of the walls, the indices of their cells.
 var springs: Array[int] = []
+## How many cells of water each spring (by the index of its cell) still holds.
+var spring_water := {}
 ## The water flows from the left to the right in the next step (see [MineWater]).
 var water_left_to_right := true
 ## The dice of the dragons, and when the next one comes (see [MineDragons]).
@@ -411,10 +414,12 @@ func take_events() -> Array[Dictionary]:
     return result
 
 
-## How full of water the mine is, in [0, 1]; at 1, it is flooded.
-func flood_level() -> float:
-    var flood := float(level.get("flood", 60.0)) * AREA_SCALE
-    return clampf(water_total / flood, 0.0, 1.0) if flood > 0.0 else 0.0
+## Whether the head of one of the players' dwarves is under water.
+func dwarf_under_water() -> bool:
+    for dwarf in dwarves:
+        if dwarf.swimming:
+            return true
+    return false
 
 
 ## How far down the dwarves came, in [0, 1].
@@ -441,7 +446,7 @@ func step(dt: float) -> void:
         return
     time += dt
 
-    if flood_level() >= PUMP_AT:
+    if dwarf_under_water():
         if MineBoosters.has(self, "pump"):
             MineBoosters.pump(self, Vector2(WIDTH / 2.0, view_top + 2.0))
         else:
@@ -598,6 +603,7 @@ func _generate() -> void:
         sy = clampi(sy, top + 2, bottom - 2)
         cells[index(sx, sy)] = Cell.SPRING
         springs.append(index(sx, sy))
+        spring_water[index(sx, sy)] = SPRING_WATER * AREA_SCALE
         var inner := 1 if sx == 0 else WIDTH - 2
         if cells[index(inner, sy)] == Cell.AIR:
             cells[index(inner, sy)] = Cell.DIRT
@@ -947,9 +953,6 @@ func _check_end() -> void:
         state = State.LOST
         events.append({"type": "lost", "pos": Vector2(chest) + Vector2(0.5, 0.5)})
         return
-    if level.get("flood", 0.0) > 0.0 and water_total >= float(level["flood"]) * AREA_SCALE:
-        state = State.FLOODED
-        events.append({"type": "flooded", "pos": Vector2(WIDTH / 2.0, view_top)})
 
 
 ## The players' dwarves and the evil miner: whom the fire and the explosions

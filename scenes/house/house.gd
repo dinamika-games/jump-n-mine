@@ -3,7 +3,8 @@ extends CardMenu
 ## The dwarves' house: the players build it up with the gems in the purse,
 ## stage by stage, part by part, like the palace of Civilization III (see
 ## [constant Economy.HOUSE_PARTS]): fifty improvements in all. The cards show
-## the next stages of a few parts at a time; "More" shows the next parts.
+## the next stages of a few parts at a time, each with its picture; "More"
+## shows the next parts.
 
 ## How many parts the cards show at a time.
 const PER_PAGE := 4
@@ -43,9 +44,11 @@ func _show() -> void:
         var card := {"id": "build:%d" % part, "color": Color("#8a6a1e")}
         if price < 0:
             card["title"] = "%s: all built!" % spec["name"]
+            card["icon"] = "house_stage:%d:%d" % [part, spec["stages"].size() - 1]
             card["disabled"] = true
         else:
             card["title"] = "%s: %d gems" % [spec["stages"][stage], price]
+            card["icon"] = "house_stage:%d:%d" % [part, stage]
             card["disabled"] = session.purse.gems < price
         cards_now.append(card)
     if _pages() > 1:

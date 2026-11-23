@@ -46,6 +46,9 @@ const GOAL_STICKINESS := 120
 ## shafts and hide behind them).
 const AWAY_FROM_DWARVES := 30 * JUMP
 
+## The waiting evil miner paces at most this many blocks one way, then turns.
+const PACE_BLOCKS := 3.0
+
 var mine: Mine
 var player := 0
 var jump_period := 1.6
@@ -58,6 +61,10 @@ var _planned_from := Vector2i(-1, -1)
 var _replan := 0.0
 var _goal := Vector2i(-1, -1)
 var _place := Vector2i(-1, -1)
+## Where the waiting evil miner started to pace this way, and which way (see
+## [method _step_aside]).
+var _pace_from := INF
+var _pace_dir := 1
 
 
 func _init(a_mine: Mine, a_player: int, a_jump_period := 1.6) -> void:
@@ -114,8 +121,10 @@ func act(dt: float) -> void:
                 _jump()
 
 
-## The evil miner waits beside the dwarves, not on them: he steps two blocks
-## away from a dwarf close to him.
+## The evil miner waits beside the dwarves, not on them, and not standing still:
+## he paces left and right on his floor (turning at a block or a hole, or after
+## [constant PACE_BLOCKS] blocks), and steps two blocks away from a dwarf close
+## to him.
 func _step_aside(rival: Mine.Dwarf) -> void:
     var x := floorf(rival.pos.x) + 0.5
     for dwarf in mine.dwarves:
@@ -124,8 +133,27 @@ func _step_aside(rival: Mine.Dwarf) -> void:
             var side := -1.0 if offset.x >= 0.0 else 1.0
             if x + side * 2.0 < 1.0 or x + side * 2.0 > Mine.WIDTH - 1.0:
                 side = -side
-            x = floorf(dwarf.pos.x) + 0.5 + side * 2.0
-    mine.set_target(player, x)
+            mine.set_target(player, floorf(dwarf.pos.x) + 0.5 + side * 2.0)
+            _pace_from = INF
+            return
+    if not rival.on_ground:
+        return
+    var floor_row := int(round(rival.pos.y))
+    if _pace_from == INF:
+        _pace_from = x
+    var next := int(floor(x)) + _pace_dir
+    if (
+        absf(x - _pace_from) >= PACE_BLOCKS
+        or mine.is_solid(next, floor_row - 1)
+        or not mine.is_solid(next, floor_row)
+    ):
+        _pace_dir = -_pace_dir
+        _pace_from = x
+        next = int(floor(x)) + _pace_dir
+        if mine.is_solid(next, floor_row - 1) or not mine.is_solid(next, floor_row):
+            mine.set_target(player, x)
+            return
+    mine.set_target(player, next + 0.5)
 
 
 ## On the floor of a puzzle hall: stand on a plate until the gate opens, then
@@ -237,7 +265,9 @@ func _plan(start: Vector2i) -> void:
     var gem_cost := GEM_REACH
     var spring_key := -1
     var spring_cost := SPRING_REACH
-    var flood := mine.flood_level()
+    # NOTE (mristin):
+    # A bot goes to hammer a spring shut only when there is much water.
+    var wet := mine.water_total > 2.0 * Mine.AREA_SCALE
     var avoid := {}
     if player == Mine.RIVAL:
         for dwarf in mine.dwarves:
@@ -262,7 +292,7 @@ func _plan(start: Vector2i) -> void:
         if gem and d < gem_cost:
             gem_cost = d
             gem_key = key
-        if flood > 0.3 and d < spring_cost and player != Mine.RIVAL:
+        if wet and d < spring_cost and player != Mine.RIVAL:
             for side in [-1, 1]:
                 if mine.cell(x + side, y - 1) == Mine.Cell.SPRING:
                     spring_cost = d

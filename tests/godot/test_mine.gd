@@ -2,7 +2,8 @@ extends SceneTree
 ## Check the rules of the mine: three hits break the earth and four the rock,
 ## a jump only hits down and an arm swung out hits the block beside, a dwarf
 ## hops onto a step of one block, the gas pockets blow up their neighbors, the
-## springs flood the mine unless they are hammered shut, the fire makes a dwarf
+## springs pour water until they run dry or are hammered shut (the mine never
+## floods), the fire makes a dwarf
 ## dizzy unless it wears the helmet, and the treasure ends the level; the moles
 ## dig and cry when hit, the evil miner digs on when the players stop and sees
 ## stars when hit, and the boosters bought in the shop start when they help.
@@ -38,7 +39,6 @@ func _plain(changes := {}) -> Dictionary:
         "gas": 0,
         "boosters": {},
         "springs": [],
-        "flood": 20.0,
         "drain": 0.0,
         "dragons": [],
         "dragons_from": 1.0,
@@ -173,7 +173,7 @@ func _check_explosion() -> void:
 
 
 func _check_springs() -> void:
-    var level := _plain({"springs": [{"at": 0.5, "side": "left", "rate": 2.0}], "flood": 6.0})
+    var level := _plain({"springs": [{"at": 0.5, "side": "left", "rate": 2.0}]})
     var mine := Mine.new(level, 1)
     var spring: int = mine.springs[0]
     var y: int = spring / Mine.WIDTH
@@ -185,8 +185,13 @@ func _check_springs() -> void:
     _wait(mine, 1.0)
     _check(mine.water_total > 0.5, "an open spring pours water")
     _check(mine.water_at(2, y + 2) > 0.0, "the water flows down and sideways")
-    _wait(mine, 10.0)
-    _check(mine.state == Mine.State.FLOODED, "the mine floods")
+    var holds := Mine.SPRING_WATER * Mine.AREA_SCALE
+    _wait(mine, holds / (2.0 * Mine.AREA_SCALE) + 5.0)
+    _check(mine.cells[spring] == Mine.Cell.SEALED, "the spring runs dry")
+    _check(absf(mine.water_total - holds) < 0.01, "the spring pours only the water it holds")
+    _check(mine.state == Mine.State.PLAYING, "the mine never floods")
+    _wait(mine, 3.0)
+    _check(absf(mine.water_total - holds) < 0.01, "a dry spring pours no more water")
 
     mine = Mine.new(level, 1)
     for yy in range(y - 1, y + 3):
@@ -257,15 +262,18 @@ func _check_boosters() -> void:
     mine.water_total = 0.0
     for k in range(mine.water.size()):
         mine.water[k] = 0.0
-    var flood := float(mine.level["flood"]) * Mine.AREA_SCALE
-    mine.water[mine.index(5, mine.height - 2)] = 0.0
-    mine.water_total = flood * (Mine.PUMP_AT + 0.05)
+    mine.take_events()
     mine.step(DT)
-    _check(mine.flood_level() < Mine.PUMP_AT, "the pump from the shop starts when the water rises")
+    _check(int(mine.charges["pump"]) == 1, "the pump waits while the dwarves are dry")
+    mine.dwarves[0].swimming = true
+    mine.step(DT)
+    var pumped := mine.take_events().any(func(e): return e["type"] == "pump")
+    _check(pumped, "the pump starts when the water is over a dwarf's head")
     _check(int(mine.charges["pump"]) == 0, "the pump is used up")
-    mine.water_total = flood * (Mine.PUMP_AT + 0.05)
+    mine.dwarves[0].swimming = true
     mine.step(DT)
-    _check(mine.flood_level() < Mine.PUMP_AT, "the pump pumps again in the same level")
+    pumped = mine.take_events().any(func(e): return e["type"] == "pump")
+    _check(pumped, "the pump pumps again in the same level")
 
 
 func _check_moles() -> void:
@@ -304,6 +312,37 @@ func _check_moles() -> void:
     _check(mole.phase == "cry", "a mole hit by the pickaxe cries")
     _wait(mine, MineMoles.CRY + 4.0)
     _check(not mole in mine.moles.all, "the crying mole runs away")
+
+    # NOTE (mristin):
+    # Moles cannot fly: their tunnels go to the sides and down, never up, and
+    # have a floor under every cell (also in a mine full of caves).
+    var tunnels := 0
+    var up := 0
+    var floating := 0
+    for level_seed in range(1, 21):
+        mine = Mine.new(
+            _plain({"seed": level_seed, "depth": 30, "caves": 12, "moles": [0.5, 0.5]}), 1
+        )
+        _stand(mine, 5, Mine.SKY_ROWS + 4)
+        var seen := {}
+        for k in range(int(6.0 / DT)):
+            mine.step(DT)
+            mine.take_events()
+            for each in mine.moles.all:
+                if seen.has(each):
+                    continue
+                seen[each] = true
+                tunnels += 1
+                for n in range(1, each.path.size()):
+                    if each.path[n].y < each.path[n - 1].y:
+                        up += 1
+                for at in each.path:
+                    var below: Vector2i = at + Vector2i(0, 1)
+                    if not mine.is_solid(below.x, below.y) and not below in each.path:
+                        floating += 1
+    _check(tunnels > 5, "the moles dig tunnels (%d)" % tunnels)
+    _check(up == 0, "the moles never dig up (%d steps up)" % up)
+    _check(floating == 0, "the moles never fly (%d cells without a floor)" % floating)
 
 
 func _check_rival() -> void:

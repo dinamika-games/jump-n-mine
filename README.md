@@ -5,9 +5,9 @@
 You are a dwarf in a mine.
 Step left and right, and your dwarf walks with you; jump, and your dwarf swings its pickaxe down at the block under its feet; punch to the side, and it swings at the block beside it.
 Three or four hits break a block, which cracks more with every hit.
-Dig down through the earth and the rock, gather the gems, step away from the exploding gas, hammer the springs shut before the water floods the mine, dodge the dragons' fire, open the iron gates with the stone plates (together, when your friends are there), leave the friendly moles alone, and find the treasure at the bottom before the evil miner of Queen Treacher does (bonk him with your pickaxe!).
+Dig down through the earth and the rock, gather the gems, step away from the exploding gas, wade through the water of the springs (or hammer them shut), dodge the dragons' fire, open the iron gates with the stone plates (together, when your friends are there), leave the friendly moles alone, and find the treasure at the bottom before the evil miner of Queen Treacher does (bonk him with your pickaxe!).
 Spend the gems on boosters for the next levels, and build up the dwarves' house, fifty improvements in all.
-Nobody dies: when the mine floods, the dwarves climb out and try again.
+Nobody dies: the water only slows the dwarves down, and the springs run dry.
 
 Whoever steps in front of the camera gets a dwarf, with a miner's helmet over her head in the camera picture; whoever leaves takes her dwarf along, and gets it back when she returns, since the game recognizes her face.
 

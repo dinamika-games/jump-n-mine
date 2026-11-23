@@ -14,6 +14,23 @@ const GOLD := Color("#ffcf3a")
 
 const _PICTURES := "res://assets/pictures/"
 
+## The frames of the water pouring from a spring (assets/pictures/water/), and
+## how many per second.
+const POUR_FRAMES := 6
+const POUR_FPS := 10.0
+
+## The water leaves the pipe in the top left corner of a frame of the pouring
+## water, this far down (as a fraction of its height); it falls about straight
+## down from the [constant POUR_STRETCH] of its height, and splashes from the
+## [constant POUR_SPLASH] down.
+const POUR_MOUTH := 0.075
+const POUR_STRETCH := 0.5
+const POUR_SPLASH := 0.62
+
+## A frame of the pouring water is this tall when the water falls freely, in
+## blocks; it is as wide as its picture is.
+const POUR_HEIGHT := 1.6
+
 ## The height of the crystal of a plate, waiting and pressed, as a part of the tile.
 const _PLATE_CRYSTAL := [0.098, 0.119]
 
@@ -303,12 +320,54 @@ static func plate(canvas: CanvasItem, rect: Rect2, pressed: bool, time: float) -
     canvas.draw_circle(crystal, rect.size.x * 0.1, glow)
 
 
-## A spring in the wall, pouring water, or sealed with a plug.
+## A spring in the wall: its pipe (the water is drawn by [method pour]), or
+## sealed with a plug.
 static func spring(canvas: CanvasItem, rect: Rect2, sealed: bool, damage: float) -> void:
     canvas.draw_texture_rect(
-        picture("blocks/spring_sealed.png" if sealed else "blocks/spring_open.png"), rect, false
+        picture("blocks/spring_sealed.png" if sealed else "blocks/spring_empty.png"), rect, false
     )
     cracks(canvas, rect, damage)
+
+
+## The water pouring from the mouth of a spring, to the side (1 to the right,
+## -1 to the left), down to the floor or the surface of the water at the row
+## landing (in pixels), with blocks of the size (in pixels), at the time. A
+## long fall stretches the falling part of the stream, and a short one shrinks
+## the whole stream.
+static func pour(
+    canvas: CanvasItem, mouth: Vector2, landing: float, block: float, side: int, time: float
+) -> void:
+    var frame := picture("water/pour_%d.png" % (int(time * POUR_FPS) % POUR_FRAMES + 1))
+    var natural := POUR_HEIGHT * block
+    var aspect := float(frame.get_width()) / frame.get_height()
+    var top := mouth.y - POUR_MOUTH * natural
+    var height := landing - top
+    if height < block * 0.3:
+        return
+    canvas.draw_set_transform(Vector2(mouth.x, top), 0.0, Vector2(side, 1))
+    var source := Vector2(frame.get_width(), frame.get_height())
+    if height <= natural:
+        var k := height / natural
+        var width := natural * aspect * maxf(k, 0.6)
+        canvas.draw_texture_rect(frame, Rect2(0, 0, width, height), false)
+    else:
+        var width := natural * aspect
+        var head := POUR_STRETCH * natural
+        var tail := (1.0 - POUR_SPLASH) * natural
+        canvas.draw_texture_rect_region(
+            frame, Rect2(0, 0, width, head), Rect2(0, 0, source.x, POUR_STRETCH * source.y)
+        )
+        canvas.draw_texture_rect_region(
+            frame,
+            Rect2(0, head, width, height - head - tail),
+            Rect2(0, POUR_STRETCH * source.y, source.x, (POUR_SPLASH - POUR_STRETCH) * source.y)
+        )
+        canvas.draw_texture_rect_region(
+            frame,
+            Rect2(0, height - tail, width, tail),
+            Rect2(0, POUR_SPLASH * source.y, source.x, (1.0 - POUR_SPLASH) * source.y)
+        )
+    canvas.draw_set_transform(Vector2.ZERO)
 
 
 ## A gem, of the color by the index, as big as the size (its half height).

@@ -3,10 +3,10 @@ extends RefCounted
 
 ## The moles of the mine: friends of the dwarves. Every so often (see
 ## [code]moles[/code] in [LevelCatalog]), a mole comes out of the earth a few
-## rows below a dwarf, digs a short tunnel through the earth (and lets the gems
-## in it fall out, since a mole takes no gems), looks around, and goes back the
-## way it came. A mole hit by a pickaxe cries, runs away, and the next one waits
-## longer.
+## rows below a dwarf, digs a short tunnel through the earth, to the sides and
+## down but never up, since moles cannot fly (and lets the gems in it fall out,
+## since a mole takes no gems), looks around, and goes back the way it came. A
+## mole hit by a pickaxe cries, runs away, and the next one waits longer.
 
 ## How fast a mole digs and goes back, in cells per second.
 const SPEED := 1.6
@@ -80,9 +80,13 @@ func update(mine: Mine, dt: float) -> void:
                 mole.along = minf(last, mole.along + SPEED * dt)
                 var now := int(floor(mole.along + 0.5))
                 if now != before:
-                    if not _may_dig(mine, mole.path[now]):
+                    if (
+                        not _may_dig(mine, mole.path[now])
+                        or not mine.is_solid(mole.path[now].x, mole.path[now].y + 1)
+                    ):
                         # NOTE (mristin):
-                        # Something changed ahead (e.g., a gate): go back.
+                        # Something changed ahead (e.g., a gate, or a dwarf
+                        # dug away the floor): go back.
                         mole.along = float(before)
                         mole.phase = "back"
                         mole.time = 0.0
@@ -138,6 +142,20 @@ func _may_dig(mine: Mine, at: Vector2i) -> bool:
     return kind == Mine.Cell.DIRT or kind == Mine.Cell.AIR
 
 
+## Whether a mole may step into the cell from its tunnel: moles cannot fly, so
+## the cell needs earth or a block under it to stand on (its own tunnel is no
+## floor).
+func _may_step(mine: Mine, at: Vector2i, path: Array[Vector2i]) -> bool:
+    if at in path:
+        return false
+    return _has_floor(mine, at, path)
+
+
+func _has_floor(mine: Mine, at: Vector2i, path: Array[Vector2i]) -> bool:
+    var below := at + Vector2i(0, 1)
+    return mine.is_solid(below.x, below.y) and not below in path
+
+
 ## A mole comes out of the earth one or two rows below a dwarf (where the
 ## players see it), with a short tunnel ahead.
 func _spawn(mine: Mine) -> void:
@@ -151,21 +169,32 @@ func _spawn(mine: Mine) -> void:
         if not _may_dig(mine, start) or mine.cell(start.x, start.y) != Mine.Cell.DIRT:
             continue
         var path: Array[Vector2i] = [start]
+        if not _has_floor(mine, start, path):
+            continue
         var direction := 1 if _rng.randf() < 0.5 else -1
         var length := _rng.randi_range(3, 5)
         for k in range(12):
             if path.size() >= length:
                 break
             var last: Vector2i = path[-1]
+            var down := last + Vector2i(0, 1)
             var next := last + Vector2i(direction, 0)
-            var roll := _rng.randf()
-            if roll < 0.2:
-                next = last + Vector2i(0, -1)
-            elif roll < 0.35:
-                next = last + Vector2i(0, 1)
-            if not _may_dig(mine, next) or next in path:
-                direction = -direction
-                continue
+            if _rng.randf() < 0.25 and _may_dig(mine, down) and _may_step(mine, down, path):
+                next = down
+            if not _may_dig(mine, next) or not _may_step(mine, next, path):
+                # NOTE (mristin):
+                # A mole turns around at most once; else it digs down, or stops.
+                if (
+                    k == 0
+                    and _may_dig(mine, last - Vector2i(direction, 0))
+                    and _may_step(mine, last - Vector2i(direction, 0), path)
+                ):
+                    direction = -direction
+                    continue
+                if _may_dig(mine, down) and _may_step(mine, down, path):
+                    path.append(down)
+                    continue
+                break
             path.append(next)
         if path.size() < 3:
             continue

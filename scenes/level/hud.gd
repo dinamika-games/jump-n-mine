@@ -67,23 +67,6 @@ func _draw() -> void:
         self, Vector2(bar.position.x + bar.size.x * mine.progress(), bar.end.y + 4), 46.0, 0, {}
     )
 
-    # How full of water the mine is.
-    if not level.get("springs", []).is_empty():
-        var flood := mine.flood_level()
-        var meter := Rect2(1450, 28, 300, 32)
-        draw_rect(meter.grow(3), Art.OUTLINE)
-        draw_rect(meter, Color("#1a2a3a"))
-        var blink := flood > 0.75 and fmod(_time * 3.0, 1.0) < 0.5
-        draw_rect(
-            Rect2(meter.position, Vector2(meter.size.x * flood, meter.size.y)),
-            Color("#ff5a4a") if blink else Color("#3f8ee8")
-        )
-        draw_circle(Vector2(1420, 44), 14.0, Color("#3f8ee8"))
-        draw_colored_polygon(
-            PackedVector2Array([Vector2(1406, 40), Vector2(1434, 40), Vector2(1420, 18)]),
-            Color("#3f8ee8")
-        )
-
     _draw_boosters()
 
     # NOTE (mristin):

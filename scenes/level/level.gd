@@ -3,8 +3,8 @@ extends Node2D
 
 ## Play a level of [LevelCatalog]: the players step left and right to walk
 ## their dwarves and jump to swing the pickaxes, until a dwarf finds the
-## treasure at the bottom, or the water floods the mine, or the evil miner of
-## Queen Treacher takes the treasure first, and they start again. The dwarves
+## treasure at the bottom, or the evil miner of Queen Treacher takes the
+## treasure first, and they start again. The dwarves
 ## take the boosters bought in the shop along, and keep the gems they gathered.
 ##
 ## The players come and go at will: a head which appears
@@ -42,7 +42,7 @@ const STEP_HOLD := 0.1
 ## A dwarf waits this long for its head to come back, in seconds.
 const WAIT_FOR_HEAD := 4.0
 
-## Show the cards at the end this long after the treasure or the flood.
+## Show the cards at the end this long after the treasure is found or lost.
 const END_DELAY := 2.0
 
 ## The menu at the end of a level takes a jump only after the players stopped
@@ -366,7 +366,7 @@ func _sound(events: Array[Dictionary]) -> void:
                 get_node("/root/Sounds").play("dizzy")
             "pump":
                 get_node("/root/Sounds").play("booster")
-            "won", "flooded", "lost", "mole", "rival":
+            "won", "lost", "mole", "rival":
                 get_node("/root/Sounds").play(type)
             "gas", "joined", "mole_dig", "mole_gone":
                 pass
@@ -386,7 +386,7 @@ func _sound(events: Array[Dictionary]) -> void:
                 get_node("/root/Sounds").play("click")
             "gate_open":
                 get_node("/root/Sounds").play("booster")
-            "gate_closed":
+            "gate_closed", "dry":
                 get_node("/root/Sounds").play("sealed")
             "left":
                 get_node("/root/Sounds").play("rope", 0.8)
@@ -402,7 +402,8 @@ func _tip_for(type: String) -> void:
         "dragon": "A dragon! Step away from the red glow!",
         "plate": "Stand on the stone plates to open the iron gate!",
         "gate_open": "The gate is open! Quick, drop through!",
-        "splash": "Water! Hit the blue spring in the wall to seal it.",
+        "splash": "Water! It slows you down. Jump next to the spring to seal it.",
+        "dry": "The spring ran dry!",
         "booster": "A booster from the shop helps you!",
         "mole": "A mole! It digs for you. Don't hit it!",
         "mole_cry": "Oh no, the mole cries! Moles are friends.",
@@ -414,9 +415,6 @@ func _tip_for(type: String) -> void:
     if tips.has(type) and not _tips_shown.has(type):
         _tips_shown[type] = true
         hud.tip(tips[type])
-    if not _tips_shown.has("water") and mine.flood_level() > 0.5:
-        _tips_shown["water"] = true
-        hud.tip("The mine is filling with water! Seal the springs!")
 
 
 func _show_end() -> void:
@@ -436,15 +434,9 @@ func _show_end() -> void:
                 {"id": "next", "title": "Next level", "icon": "next", "color": Color("#b8452f")}
             )
         cards.append({"id": "again", "title": "Again", "icon": "again", "color": Color("#3d5a8a")})
-    elif mine.state == Mine.State.LOST:
+    else:
         _menu.title = "The evil miner was faster!"
         _menu.subtitle = "Queen Treacher's miner grabbed the treasure. %s" % purse
-        cards.append(
-            {"id": "again", "title": "Try again", "icon": "again", "color": Color("#b8452f")}
-        )
-    else:
-        _menu.title = "The mine is flooded!"
-        _menu.subtitle = "The dwarves climbed out, wet but happy. %s" % purse
         cards.append(
             {"id": "again", "title": "Try again", "icon": "again", "color": Color("#b8452f")}
         )

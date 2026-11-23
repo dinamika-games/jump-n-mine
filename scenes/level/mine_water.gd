@@ -1,8 +1,9 @@
 class_name MineWater
 extends RefCounted
 
-## The water of the [Mine]: the open springs pour it in, it falls and spreads
-## through the open cells, and it seeps away slowly in some levels.
+## The water of the [Mine]: the open springs pour it in until they run dry
+## (see [constant Mine.SPRING_WATER]), it falls and spreads through the open
+## cells, and it seeps away slowly in some levels.
 
 
 static func flow(mine: Mine, dt: float) -> void:
@@ -19,10 +20,18 @@ static func flow(mine: Mine, dt: float) -> void:
         for spring in mine.level.get("springs", []):
             if (spring["side"] == "left") == (sx == 0):
                 rate = float(spring["rate"]) * Mine.AREA_SCALE
-        var added := minf(rate * dt, 1.0 - mine.water[j])
+        var left := float(mine.spring_water.get(i, 0.0))
+        var added := minf(minf(rate * dt, 1.0 - mine.water[j]), left)
         if added > 0.0:
             mine.water[j] += added
             mine.water_total += added
+            mine.spring_water[i] = left - added
+        if left - added <= 0.0001:
+            # NOTE (mristin):
+            # The spring ran dry: it is as good as sealed.
+            mine.spring_water[i] = 0.0
+            mine.cells[i] = Mine.Cell.SEALED
+            mine.events.append({"type": "dry", "pos": Vector2(sx, sy) + Vector2(0.5, 0.5)})
 
     if mine.water_total <= 0.0001:
         mine.water_total = 0.0

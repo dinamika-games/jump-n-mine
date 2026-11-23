@@ -1,6 +1,6 @@
 """
 Cut the sheets of the blocks, the caves and the skies of the three worlds
-(jump_n_mine_blocks/), and the cracks, the bedrock and the springs
+(jump_n_mine_blocks/), and the cracks, the bedrock and the sealed springs
 (jump_n_mine_gassy_blocks/).
 
 Usage:
@@ -25,7 +25,7 @@ BLOCK: Final[int] = 160
 
 
 def cut_blocks(load: Sheets) -> None:
-    """Cut the blocks, the caves, the skies, the cracks, the bedrock and the springs."""
+    """Cut the blocks, the caves, the skies, the cracks, the bedrock and the sealed springs."""
     source = load.folder
     blocks = cells(load("jump_n_mine_blocks/blocks_6x3_320px.png"), 6, 3)
     for w, world in enumerate(WORLDS):
@@ -55,7 +55,9 @@ def cut_blocks(load: Sheets) -> None:
     for k in range(1, 4):
         crack = load(f"jump_n_mine_gassy_blocks/crack_{k}.png")
         save(crack.resize((BLOCK, BLOCK), Image.LANCZOS), f"blocks/crack_{k}.png")
-    for name in ["bedrock", "spring_open", "spring_sealed"]:
+    # NOTE (mristin):
+    # The empty pipe of the springs and their water are cut by cut_water.py.
+    for name in ["bedrock", "spring_sealed"]:
         block = load(f"jump_n_mine_gassy_blocks/{name}.png")
         save(block.resize((BLOCK, BLOCK), Image.LANCZOS), f"blocks/{name}.png")
 

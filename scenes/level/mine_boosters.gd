@@ -6,8 +6,8 @@ extends RefCounted
 ## all the players' dwarves for the rest of the level ([member Mine.active]):
 ## the golden pickaxe on the hard rock, the fire helmet when the fire or an
 ## explosion would make a dwarf dizzy, the spring boots before a step of two
-## blocks, and the pump when the mine is filling up ([constant Mine.PUMP_AT]),
-## and whenever it fills up again. A booster bought in the shop thus lasts a
+## blocks, and the pump when the water reaches over the head of a dwarf, and
+## whenever it does again. A booster bought in the shop thus lasts a
 ## level. The evil miner never has them.
 
 

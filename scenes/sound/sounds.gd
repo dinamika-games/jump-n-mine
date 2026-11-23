@@ -202,34 +202,6 @@ const _RECIPES := {
         },
         {"wave": "sine", "from": 523.0, "to": 523.0, "start": 0.54, "length": 0.6, "volume": 0.25},
     ],
-    "flooded":
-    [
-        {
-            "wave": "triangle",
-            "from": 392.0,
-            "to": 392.0,
-            "start": 0.0,
-            "length": 0.3,
-            "volume": 0.4
-        },
-        {
-            "wave": "triangle",
-            "from": 330.0,
-            "to": 330.0,
-            "start": 0.3,
-            "length": 0.3,
-            "volume": 0.4
-        },
-        {
-            "wave": "triangle",
-            "from": 262.0,
-            "to": 250.0,
-            "start": 0.6,
-            "length": 0.7,
-            "volume": 0.4
-        },
-        {"wave": "noise", "from": 1500.0, "to": 300.0, "start": 0.0, "length": 1.2, "volume": 0.2},
-    ],
     # NOTE (mristin):
     # The sounds of the moles, the evil miner and the shop have no recordings
     # yet; they are synthesized.

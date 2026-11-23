@@ -110,6 +110,12 @@ const _FENCE_SQUASH := 0.8
 const _ROOF_WIDTH := 410.0
 const _EAVES := 270.0
 
+## The painted pieces of the stages which are not named after their stage (see
+## [method stage_picture]), by the id of the part and the name of the stage.
+const _STAGE_PICTURES := {
+    "mine": {"Lanterns": "lantern", "Gem-studded gate": "gem_gate"},
+}
+
 ## Where the stage lies on the canvas, and how much it is scaled (for the
 ## pictures which set their own transform, see [method _square]).
 static var _origin := Vector2.ZERO
@@ -152,6 +158,20 @@ static func draw(canvas: CanvasItem, rect: Rect2, stages: Dictionary, time: floa
     _fence(canvas, s.call("fence"))
 
     canvas.draw_set_transform(Vector2.ZERO)
+
+
+## The painted piece which shows the stage (0 to 4) of the part (its index in
+## [constant Economy.HOUSE_PARTS]), e.g., for the card which builds it, as a
+## path under assets/pictures/, or "" if it is not painted.
+static func stage_picture(part: int, stage: int) -> String:
+    var spec: Dictionary = Economy.HOUSE_PARTS[part]
+    var id: String = spec["id"]
+    var name: String = spec["stages"][stage]
+    var piece: String = _STAGE_PICTURES.get(id, {}).get(
+        name, name.to_lower().replace("-", "_").replace(" ", "_")
+    )
+    var path := "house/%s/%s.png" % [id, piece]
+    return path if ResourceLoader.exists(Art._PICTURES + path) else ""
 
 
 ## A filled ellipse, cut to the stage, so that the hills stay in the picture.

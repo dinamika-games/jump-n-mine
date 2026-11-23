@@ -25,6 +25,7 @@ var _particles: Array[Dictionary] = []
 ## The explosions which still show: "pos" (in cells), "time" (since the blast)
 ## and "seed".
 var _blasts: Array[Dictionary] = []
+var _water_layer := EffectLayer.new("res://scenes/effects/water.gdshader")
 var _warning_layer := EffectLayer.new("res://scenes/effects/warning.gdshader")
 var _gas_layer := EffectLayer.new("res://scenes/effects/gas.gdshader")
 var _blast_layer := EffectLayer.new("res://scenes/effects/explosion.gdshader")
@@ -36,6 +37,12 @@ func _init(a_mine: Mine, a_world_index: int) -> void:
     mine = a_mine
     world_index = a_world_index
     world = LevelCatalog.WORLDS[a_world_index]
+    # NOTE (mristin):
+    # The water lies over the dwarves who wade in it, under the gas and the
+    # explosions.
+    _water_layer.paint = _paint_water
+    (_water_layer.material as ShaderMaterial).set_shader_parameter("cell_size", CELL)
+    add_child(_water_layer)
     _warning_layer.paint = _paint_warnings
     add_child(_warning_layer)
     _gas_layer.paint = _paint_gas
@@ -222,7 +229,7 @@ func _draw() -> void:
             _draw_cell(x, y)
 
     _draw_puzzles(first, last)
-    _draw_water(first, last)
+    _draw_water()
     _draw_items(first, last)
     _draw_chest()
     for mole in mine.moles.all:
@@ -279,7 +286,10 @@ func _draw_cell(x: int, y: int) -> void:
         Mine.Cell.SPRING:
             Art.spring(self, rect, false, damage)
         Mine.Cell.SEALED:
-            Art.spring(self, rect, true, 0.0)
+            # NOTE (mristin):
+            # A spring which ran dry shows its empty pipe.
+            var dry := float(mine.spring_water.get(mine.index(x, y), 1.0)) <= 0.0
+            Art.spring(self, rect, not dry, 0.0)
         Mine.Cell.GATE:
             Art.gate(self, rect)
         Mine.Cell.PLATE:
@@ -296,28 +306,9 @@ func _draw_cell(x: int, y: int) -> void:
             Art.booster(self, center, CELL * 0.36, item)
 
 
-func _draw_water(first: int, last: int) -> void:
-    if mine.water_total <= 0.0:
-        return
-    var water_color := Color(0.2, 0.5, 0.95, 0.55)
-    for y in range(maxi(0, first), mini(mine.height, last + 1)):
-        for x in range(1, Mine.WIDTH - 1):
-            var w := mine.water_at(x, y)
-            if w <= 0.02:
-                continue
-            var rect := Rect2(to_screen(Vector2(x, y)), Vector2(CELL, CELL))
-            var full := mine.water_at(x, y - 1) > 0.02
-            var h := CELL if full else CELL * clampf(w, 0.08, 1.0)
-            var top := rect.end.y - h
-            draw_rect(Rect2(rect.position.x, top, CELL, h), water_color)
-            if not full:
-                var wave := sin(_time * 3.0 + x * 0.9) * 3.0
-                draw_line(
-                    Vector2(rect.position.x, top + wave),
-                    Vector2(rect.end.x, top - wave),
-                    Color(0.75, 0.9, 1.0, 0.8),
-                    3.0
-                )
+## Draw the water pouring from the open springs; the water standing in the mine
+## is painted by [method _paint_water].
+func _draw_water() -> void:
     for i in mine.springs:
         if mine.cells[i] != Mine.Cell.SPRING:
             continue
@@ -326,14 +317,26 @@ func _draw_water(first: int, last: int) -> void:
         var inner := 1 if sx == 0 else Mine.WIDTH - 2
         if mine.cell(inner, sy) != Mine.Cell.AIR:
             continue
-        # The water pours out of the open spring.
-        var from := to_screen(Vector2(sx + (1.0 if sx == 0 else 0.0), sy + 0.4))
-        var direction := 1.0 if sx == 0 else -1.0
-        var points := PackedVector2Array()
-        for k in range(8):
-            var t := k / 7.0
-            points.append(from + Vector2(direction * t * 40.0, t * t * 70.0))
-        draw_polyline(points, Color(0.6, 0.85, 1.0, 0.9), 12.0)
+        # NOTE (mristin):
+        # The water pours out of the open spring, down to the floor or to the
+        # surface of the water below it.
+        var landing := float(sy + 12)
+        for y in range(sy, sy + 12):
+            if mine.is_solid(inner, y):
+                landing = y
+                break
+            var w := mine.water_at(inner, y)
+            if w > 0.05 and (mine.is_solid(inner, y + 1) or mine.water_at(inner, y + 1) > 0.95):
+                landing = y + 1.0 - w
+                break
+        Art.pour(
+            self,
+            to_screen(Vector2(sx + 0.5, sy + 0.5)),
+            to_screen(Vector2(0, landing)).y,
+            CELL,
+            1 if sx == 0 else -1,
+            _time
+        )
 
 
 func _draw_items(first: int, last: int) -> void:
@@ -459,6 +462,41 @@ func _paint_gas(canvas: CanvasItem) -> void:
         canvas.draw_texture_rect(
             white, rect, false, Color(Art.hash01(int(cell.x), int(cell.y), 9), 1.0, danger, 1.0)
         )
+
+
+## Paint the water standing in the mine with its shader
+## (scenes/effects/water.gdshader): a rectangle for each cell with water.
+func _paint_water(canvas: CanvasItem) -> void:
+    if mine.water_total <= 0.0:
+        return
+    (_water_layer.material as ShaderMaterial).set_shader_parameter(
+        "scroll", mine.view_top * CELL - TOP
+    )
+    var white := _water_layer.white()
+    var first := int(floor(mine.view_top)) - 1
+    var last := int(ceil(mine.view_top + Mine.VIEW_ROWS)) + 1
+    for y in range(maxi(0, first), mini(mine.height, last + 1)):
+        for x in range(1, Mine.WIDTH - 1):
+            var w := mine.water_at(x, y)
+            if w <= 0.02:
+                continue
+            var covered := mine.water_at(x, y - 1) > 0.02
+            # NOTE (mristin):
+            # How deep the top of the cell lies under the surface, in cells.
+            var depth := 0.0
+            if covered:
+                var above := y - 1
+                while above > 0 and mine.water_at(x, above - 1) > 0.02 and depth < 4.0:
+                    depth += 1.0
+                    above -= 1
+                depth += mine.water_at(x, above)
+            var rect := Rect2(to_screen(Vector2(x, y)), Vector2(CELL, CELL))
+            canvas.draw_texture_rect(
+                white,
+                rect,
+                false,
+                Color(clampf(w, 0.08, 1.0), 1.0 if covered else 0.0, clampf(depth / 4.0, 0.0, 1.0))
+            )
 
 
 ## Draw the explosions.

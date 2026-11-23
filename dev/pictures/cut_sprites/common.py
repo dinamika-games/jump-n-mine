@@ -16,7 +16,8 @@ their transparency. Each cutter takes the folder with the unpacked sheets:
 * ``cut_title.py``: the title painting;
 * ``cut_house.py``: the dwarves' house;
 * ``cut_gate_and_icons.py``: the iron gate with its stone plates, and the icons of
-  the menu cards.
+  the menu cards;
+* ``cut_water.py``: the empty pipe of the springs, and the water pouring out of it.
 
 The image generator sometimes paints a checkerboard, a flat magenta or a haze
 instead of a transparent background; the cleaners here clear them.

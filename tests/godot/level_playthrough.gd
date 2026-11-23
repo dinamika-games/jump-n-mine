@@ -78,7 +78,7 @@ func _run() -> void:
                 (
                     (
                         "%s, %d dwarves: %s after %.1f min, %d/%d gems, %d stars, %d hits, "
-                        + "flood %.0f %%, deepest %.0f %%, evil miner %.0f %% (%.1f s)"
+                        + "water %.1f cells, deepest %.0f %%, evil miner %.0f %% (%.1f s)"
                     )
                     % [
                         level["id"],
@@ -89,7 +89,7 @@ func _run() -> void:
                         mine.gems_total,
                         mine.stars(),
                         hits,
-                        mine.flood_level() * 100.0,
+                        mine.water_total,
                         mine.progress() * 100.0,
                         rival_progress(mine) * 100.0,
                         (Time.get_ticks_msec() - started) / 1000.0,
