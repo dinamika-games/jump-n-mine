@@ -1,5 +1,7 @@
 # Jump 'n' Mine
 
+![Jump 'n' Mine: choosing an expedition and a mine, then digging down for the gems, past a mole](docs/jump-n-mine.gif)
+
 **Jump 'n' Mine is a free digging game for children, played by jumping in front of a webcam, alone or with up to three friends who come and go as they like.**
 
 You are a dwarf in a mine.
