@@ -58,6 +58,8 @@ The pictures were painted with an image generator from our prompts (`dev/picture
 
 The sounds are recordings under CC0 from [Freesound], by Alex_hears_things, benzix2, BMacZero, CamoMano, derplayer, f3bbbo, Godowan, kwahmah_02, magnuswaker, MPierluissi, Mr._Fritz_, plasterbrain, qubodup, Reitanna, renatalmar, roman_cgr, swordofkings128, the_semen_incident, YoshikaMiyafuji and Za-Games. Thank you!
 
+The music is a compilation of sixteen songs of the miners (and of the dwarves and the trolls of the mountains), all in the public domain or under CC0: MIDI files by Peter Gerloff on [Wikimedia Commons][steigerlied], by the contributors to the [Mutopia Project], scores of [OpenScore Lieder], and melodies of the [Essen Folksong Collection] and other old songbooks, which we transcribed. Thank you!
+
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for all the components and their licenses.
 
 [YOLOX-Body-Head-Hand-Face]: https://github.com/PINTO0309/PINTO_model_zoo/tree/main/434_YOLOX-Body-Head-Hand-Face
@@ -65,6 +67,10 @@ See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for all the components and 
 [SFace]: https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface
 [RTMPose]: https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose
 [Freesound]: https://freesound.org
+[steigerlied]: https://commons.wikimedia.org/wiki/File:Gl%C3%BCck_auf,_der_Steiger_kommt.mid
+[Mutopia Project]: https://www.mutopiaproject.org
+[OpenScore Lieder]: https://musescore.com/openscore-lieder-corpus
+[Essen Folksong Collection]: https://github.com/ccarh/essen-folksong-collection
 
 ## Contributing
 

@@ -109,6 +109,34 @@ We distribute the model unmodified.
 
 We thank the authors for giving their recordings to the public domain, even though CC0 does not ask for it.
 
+### The music
+
+* Files: `assets/music/<song>.mid`, fetched by `dev/music/fetch_music.py` as listed in `dev/music/sources.json`, and `assets/music/<song>.ogg`, rendered from them by `dev/music/render_music.py` with our own synthesized instruments (no sound font)
+* The MIDI files from Wikimedia Commons and the Mutopia Project are copied unmodified; the scores of OpenScore Lieder are converted from MusicXML; the melodies marked "our transcription" are written by us in ABC notation (`dev/music/melodies/`) from the sources linked below, taking only the notes of melodies in the public domain
+* Our transcriptions, conversions and renderings are under the MIT License of the game, like the rest of it
+
+| Song | Work | Credit | License |
+|---|---|---|---|
+| `glueck_auf` | [Glück auf, der Steiger kommt](https://commons.wikimedia.org/wiki/File:Gl%C3%BCck_auf,_der_Steiger_kommt.mid) | Melody traditional; set and sequenced by Peter Gerloff (Rabanus Flavus) | CC0 |
+| `clementine` | [Oh My Darling, Clementine](https://commons.wikimedia.org/wiki/File:O_My_Darling_Clementine.mid) | Melody traditional; set and sequenced by Peter Gerloff (Rabanus Flavus) | CC0 |
+| `bergmannslied` | [Bergmannslied, Op. 4 No. 4](https://github.com/OpenScore/Lieder/tree/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/4_Bergmannslied) | Louise Reichardt; transcribed by the contributors to OpenScore Lieder | CC0 |
+| `noch_ein_bergmannslied` | [Noch ein Bergmannslied, Op. 4 No. 5](https://github.com/OpenScore/Lieder/tree/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/5_Noch_ein_Bergmannslied) | Louise Reichardt; transcribed by the contributors to OpenScore Lieder | CC0 |
+| `hall_of_the_mountain_king` | [In the Hall of the Mountain King, Op. 46 No. 4](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1888) | Edvard Grieg; typeset by the contributors to the Mutopia Project | Public domain |
+| `march_of_the_dwarfs` | [Troldtog (March of the Dwarfs), Op. 54 No. 3](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=2014) | Edvard Grieg; typeset by the contributors to the Mutopia Project | Public domain |
+| `mountaineers_song` | [Lualåt (The Mountaineer's Song), Op. 73 No. 7](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1628) | Edvard Grieg; typeset by the contributors to the Mutopia Project | Public domain |
+| `cwm_rhondda` | [Cwm Rhondda](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=523) | John Hughes; typeset by the contributors to the Mutopia Project | Public domain |
+| `bonny_pit_laddie` | [The Bonny Pit Laddie](https://folkinfo.mainlynorfolk.info/songs/abc/492.abc) | Melody traditional, after Bruce and Stokoe, Northumbrian Minstrelsy (1882); our transcription | Public domain |
+| `colliers_rant` | [The Collier's Rant](https://folkinfo.mainlynorfolk.info/songs/abc/174.abc) | Melody traditional, after Bruce and Stokoe (1882) as printed by R. Palmer; our transcription | Public domain |
+| `miners_lifeguard` | [The Miner's Lifeguard](https://nethymnal.org/htm/l/r/lrailway.htm) | Melody by Charles D. Tillman (1890); our transcription | Public domain |
+| `calon_lan` | [Calon Lân](https://nigelgatherer.com/tunes/tunes/zWorld/ABC/Calon.html) | Melody by John Hughes; our transcription | Public domain |
+| `schon_wieder_toent` | [Schon wieder tönt vom Schachte her](https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/erk/deut1892.krn) | Melody traditional, after Erk and Böhme, Deutscher Liederhort (1893), as encoded in the Essen Folksong Collection; our transcription | Public domain |
+| `bergmann_im_schwarzen_gewand` | [Der Bergmann im schwarzen Gewand](https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/boehme/deut2797.krn) | Melody traditional, after Böhme, Volksthümliche Lieder der Deutschen (1895), as encoded in the Essen Folksong Collection; our transcription | Public domain |
+| `trimdon_grange` | [Trimdon Grange Explosion](https://folkinfo.mainlynorfolk.info/songs/abc/176.abc) | Melody traditional, as noted by A. L. Lloyd and printed by R. Palmer; our transcription | Public domain |
+| `bergleut_sind_die_schoensten_leut` | [Bergleut sind die schönsten Leut](https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/erk/deut1894.krn) | Melody traditional, after Erk and Böhme, Deutscher Liederhort (1893), as encoded in the Essen Folksong Collection; our transcription | Public domain |
+
+We thank Peter Gerloff, the contributors to the Mutopia Project and to OpenScore Lieder, and the editors of the Essen Folksong Collection.
+OpenScore Lieder asks to be credited (https://musescore.com/openscore-lieder-corpus), which we gladly do.
+
 ## Used only for development, not distributed
 
 | Component | Version | License | Source |
@@ -118,5 +146,6 @@ We thank the authors for giving their recordings to the public domain, even thou
 | StbImageSharp | 2.30.16 | Unlicense or MIT | https://github.com/StbSharp/StbImageSharp |
 | gdtoolkit (`gdformat`, `gdlint`) | 4.5.0 | MIT | https://github.com/Scony/godot-gdscript-toolkit |
 | black | 24.10.0 | MIT | https://github.com/psf/black |
+| NumPy (renders the music) | 2.2.6 | BSD-3-Clause | https://numpy.org |
 
 The test photos in `tests/JumpNMine.Tests/data/` are public-domain NASA photos: the scikit-image "astronaut" (Eileen Collins), and "Expedition 38 crew members pose for an in-flight crew portrait" (ISS038-E-054970).

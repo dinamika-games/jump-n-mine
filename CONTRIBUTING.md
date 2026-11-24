@@ -16,6 +16,7 @@ The game is made with [Godot] 4.6 (.NET), written in GDScript and C#:
   The pictures are painted sprites in `assets/pictures/`, drawn by `scenes/art/art.gd`; the gas, the explosions and the water standing in the mine are shaders in `scenes/effects/`.
   The sounds are CC0 recordings from Freesound, cut into `assets/sounds/` by `python3 dev/sounds/cut_sounds.py` (you need `sox` with the Vorbis format, e.g., `apt install sox libsox-fmt-all`).
   To add or change a sound, list its recording and its cut in `dev/sounds/sources.json` and in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and run the script, which checks that the recording is still under CC0; `scenes/sound/sounds.gd` plays `assets/sounds/<name>.ogg`, and synthesizes the sound only if there is no recording.
+  The music is listed in `dev/music/sources.json`: `venv/bin/python dev/music/fetch_music.py` fetches the MIDI files and the scores (checking their licenses on Wikimedia Commons and the Mutopia Project) and converts our ABC transcriptions (`dev/music/melodies/`) into `assets/music/<song>.mid`, and `venv/bin/python dev/music/render_music.py` renders them into `assets/music/<song>.ogg` (with NumPy and `sox`); list a new song also in `_SONGS` of `scenes/sound/sounds.gd` and in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 * The development tools live in `dev/`, which Godot ignores.
 
 [Godot]: https://godotengine.org

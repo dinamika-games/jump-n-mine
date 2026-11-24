@@ -10,6 +10,13 @@ extends Node
 ##
 ## Play a sound with [code]Sounds.play("gem")[/code], and keep a loop going
 ## with [code]Sounds.loop("water_pour", true)[/code].
+##
+## The music is a compilation of songs of the miners (and of the dwarves and
+## the trolls of the mountains), played one after another in a shuffled order,
+## quietly under the sounds; dev/music/render_music.py renders them from their
+## MIDI files into [code]assets/music/<song>.ogg[/code] (see
+## dev/music/sources.json).
+##
 ## M mutes the game, and so does [code]-- --mute[/code] at the start.
 
 const _RATE := 22050
@@ -296,10 +303,43 @@ const _RECORDINGS := "res://assets/sounds/%s.ogg"
 ## The sounds which repeat while something goes on.
 const _LOOPS := ["water_pour", "fuse"]
 
+## The songs of the music, [code]assets/music/<song>.ogg[/code] (see
+## dev/music/sources.json).
+const _SONGS := [
+    "glueck_auf",
+    "clementine",
+    "bergmannslied",
+    "noch_ein_bergmannslied",
+    "hall_of_the_mountain_king",
+    "march_of_the_dwarfs",
+    "mountaineers_song",
+    "cwm_rhondda",
+    "bonny_pit_laddie",
+    "colliers_rant",
+    "miners_lifeguard",
+    "calon_lan",
+    "schon_wieder_toent",
+    "bergmann_im_schwarzen_gewand",
+    "trimdon_grange",
+    "bergleut_sind_die_schoensten_leut",
+]
+
+## The recordings of the songs.
+const _SONG_PATH := "res://assets/music/%s.ogg"
+
+## How loud the music plays, in dB.
+const _MUSIC_VOLUME_DB := -16.0
+
+## The silence between two songs, in seconds.
+const _MUSIC_PAUSE := 3.0
+
 var _streams := {}
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
 var _loops := {}
+var _music: AudioStreamPlayer = null
+var _playlist: Array[String] = []
+var _song := 0
 
 
 func _ready() -> void:
@@ -309,6 +349,7 @@ func _ready() -> void:
         var player := AudioStreamPlayer.new()
         add_child(player)
         _players.append(player)
+    _start_music.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -317,6 +358,9 @@ func _exit_tree() -> void:
         player.stream = null
     for sound in _loops:
         _loops[sound].stream = null
+    if _music != null:
+        _music.stop()
+        _music.stream = null
     _streams.clear()
 
 
@@ -375,8 +419,48 @@ func loop(sound: String, on: bool) -> void:
         looping.stop()
 
 
-## Stop all the sounds; the audio server lets go of them at its next mix (the
-## tests wait for it before they quit, so that nothing stays in use).
+## Play the songs one after another, in a shuffled order, from the start of
+## the game on.
+func _start_music() -> void:
+    # NOTE (mristin):
+    # As with the sounds, the dummy driver would never let go of the streams.
+    if AudioServer.get_driver_name() == "Dummy":
+        return
+    for song in _SONGS:
+        if ResourceLoader.exists(_SONG_PATH % song):
+            _playlist.append(song)
+    if _playlist.is_empty():
+        return
+    _playlist.shuffle()
+    _music = AudioStreamPlayer.new()
+    _music.volume_db = _MUSIC_VOLUME_DB
+    _music.finished.connect(_on_song_finished)
+    add_child(_music)
+    _play_song()
+
+
+func _play_song() -> void:
+    if _music == null or not is_inside_tree():
+        return
+    _music.stream = load(_SONG_PATH % _playlist[_song])
+    _music.play()
+
+
+func _on_song_finished() -> void:
+    _song += 1
+    if _song >= _playlist.size():
+        # A new round in a new order, but not the same song twice in a row.
+        var last: String = _playlist[-1]
+        _playlist.shuffle()
+        if _playlist.size() > 1 and _playlist[0] == last:
+            _playlist.reverse()
+        _song = 0
+    get_tree().create_timer(_MUSIC_PAUSE).timeout.connect(_play_song)
+
+
+## Stop all the sounds (but not the music); the audio server lets go of them
+## at its next mix (the tests wait for it before they quit, so that nothing
+## stays in use).
 func stop_all() -> void:
     for player in _players:
         player.stop()

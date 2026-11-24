@@ -1,0 +1,15 @@
+%%MIDI program 71
+%%MIDI droneprog 19
+X:1
+T:The Collier's Rant
+% source: https://folkinfo.mainlynorfolk.info/songs/abc/174.abc (from R. Palmer, A Ballad History of England, 1979; song printed by Ritson 1793/Bell 1812, tune in Bruce & Stokoe 1882)
+% status: traditional (Northumberland/Tyneside, Roud 1366), 18th century
+% edit: bar 10 has only 5 quavers in the source (A3/2G/F A/c3/); an eighth rest was added to fill it
+O:England, Northumberland
+M:6/8
+L:1/8
+Q:3/8=90
+K:Dm
+A | Add ccc | =BBB A2 A | Add c2 c | BBB A2 A | Add c2 c | BBB A2 G | F3/2E/D F2 G | A3/2^G/A D3 |
+F3/2E/D F2 G | A3/2G/F A/c3/2 z | F3/2E/D F2 G | A3/2^G/A D3 |
+F3/2E/D F2 G | A3/2G/E A/c3/2^c/ z/ | ddA B3/2A/G | A3/2^G/A D2 |]

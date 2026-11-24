@@ -1,0 +1,13 @@
+%%MIDI program 71
+%%MIDI droneprog 19
+X:1
+T:Schon wieder t\"ont vom Schachte her
+% source: https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/erk/deut1892.krn (Essen collection E1530, from Erk/Boehme, Deutscher Liederhort, 1893; Hessen, Nassau); written an octave higher
+% status: traditional (German Bergmannslied, 19th century)
+O:Germany
+M:6/8
+L:1/8
+Q:3/8=80
+K:C
+G | G2c E2E | E2G C2C | A2A cBA | A3 G z G | G2F A2F | F2E G2G | G2G GAB | d3 c z c |
+d2G G2F | E2G c2c | d2G G2F | E2G c2c | A2A cBA | G3 c z c | B3 A2B | c2E A2G | G2e e2d | c4 z |]
