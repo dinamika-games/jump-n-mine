@@ -1,0 +1,19 @@
+%%MIDI program 57
+%%MIDI droneprog 19
+X:1
+T:The Miner's Lifeguard
+T:(tune: Life's Railway to Heaven)
+% source: https://nethymnal.org/mid/l/i/f/lifes_railway_to_heaven.mid (The Cyber Hymnal, https://nethymnal.org/htm/l/r/lrailway.htm); top voice of the treble staff
+% status: tune by Charles D. Tillman (died 1943), published 1890; "Miner's Lifeguard" is a traditional US union parody on it
+O:USA
+C:Charles D. Tillman
+M:3/4
+L:1/8
+Q:1/4=115
+K:Ab
+cc | c3 A Bc | B2 A2 AA | A3 B AF | E4 E3/2E/ |
+A3 E AB | c c3 A3/2A/ | B3 B Ac | B4 cc |
+c3 A Bc | B2 A2 A3/2A/ | A3 B A3/2F/ | E4 EE |
+A3 E AB | c c3 A3/2B/ | c3 G B3/2B/ | A4 d3/2d/ |
+d3 d AB | c2 c2 ee | e3 c BA | B4 cd |
+e3 c BA | F2 A2 AB | c3 A BB | A4 |]

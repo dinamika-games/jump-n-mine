@@ -1,0 +1,271 @@
+name: Publish
+
+# NOTE (mristin):
+# We package the game for Linux, Windows and macOS when a release is published,
+# and attach the packages to the release. The tags are v1.0.0, v1.0.0-rc1 etc.,
+# the packages jump-n-mine-1.0.0-rc1-*.zip.
+#
+# You can also start the workflow by hand. Without a tag, it only tries out the
+# packaging and uploads the packages as the artifacts of the workflow run. With
+# the tag of an existing release, it also attaches the packages to that release,
+# e.g., to a release which was published before this workflow existed. Note that
+# the packages are then built from the branch the workflow runs on, not from the
+# tag.
+#
+# We use only the GitHub's own actions and the preinstalled gh command-line tool.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag of an existing release to attach the packages to (leave empty to only try out the packaging)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.6.2
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # NOTE (mristin):
+          # The ONNX models are in LFS.
+          lfs: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache Godot and its export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/godot
+          key: godot-${{ env.GODOT_VERSION }}-mono-linux-x86_64-with-templates
+
+      - name: Download Godot and its export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+
+          curl --fail --location --silent --show-error --output godot.zip \
+            "${base}/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip"
+          unzip -q godot.zip -d "${{ runner.temp }}/godot"
+          rm godot.zip
+
+          # NOTE (mristin):
+          # The .tpz is a zip archive with all the templates in templates/.
+          curl --fail --location --silent --show-error --output templates.tpz \
+            "${base}/Godot_v${GODOT_VERSION}-stable_mono_export_templates.tpz"
+          unzip -q templates.tpz -d "${{ runner.temp }}/godot"
+          rm templates.tpz
+
+      - name: Install Godot and its export templates
+        run: |
+          echo "GODOT=${{ runner.temp }}/godot/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+
+          templates_dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          mkdir -p "$templates_dir"
+          cp -r "${{ runner.temp }}/godot/templates/." "$templates_dir/"
+
+      - name: Determine the version and the release
+        # NOTE (mristin):
+        # Do not call the variable VERSION! MSBuild picks up the environment
+        # variables as properties (case-insensitively), so VERSION would override
+        # the project version, and dotnet restore fails on tags such as v1.0.0
+        # that are not valid NuGet versions.
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            tag="${INPUT_TAG}"
+          fi
+
+          if [ -n "${tag}" ]; then
+            echo "PACKAGE_VERSION=${tag#v}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=${tag}" >> "$GITHUB_ENV"
+
+            # NOTE (mristin):
+            # The tag must match the version of the game (project.godot), so
+            # that the game shows the version it is released as.
+            project_version="$(sed -n 's/^config\/version="\([^"]*\)"$/\1/p' project.godot)"
+            if [ "${tag#v}" != "${project_version}" ]; then
+              echo "The tag ${tag} does not match the version ${project_version} in project.godot." >&2
+              exit 1
+            fi
+          else
+            echo "PACKAGE_VERSION=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check the version of ONNX Runtime
+        run: |
+          # NOTE (mristin):
+          # We stay with ONNX Runtime 1.19 (see JumpNMine.csproj), the last one
+          # whose macOS libraries run on macOS 11 on both the Intel and the
+          # Apple Silicon Macs; the tests must test the same version.
+          ort_version() {
+            sed -n 's/.*Include="Microsoft.ML.OnnxRuntime" Version="\([^"]*\)".*/\1/p' "$1"
+          }
+          game="$(ort_version JumpNMine.csproj)"
+          tests="$(ort_version tests/JumpNMine.Tests/JumpNMine.Tests.csproj)"
+          echo "ONNX Runtime: ${game} in the game, ${tests} in the tests."
+          if [ -z "${game}" ] || [ "${game}" != "${tests}" ]; then
+            echo "The game and the tests must use the same version of ONNX Runtime." >&2
+            exit 1
+          fi
+          case "${game}" in
+            1.19.*) ;;
+            *)
+              echo "ONNX Runtime ${game} is not 1.19.x; its macOS libraries need macOS 13.3 or lack the Intel Macs." >&2
+              exit 1
+              ;;
+          esac
+          echo "ORT_VERSION=${game}" >> "$GITHUB_ENV"
+
+      - name: Restore and import
+        run: |
+          dotnet restore JumpNMine.csproj
+          "$GODOT" --headless --path . --import
+
+      - name: Export
+        run: |
+          mkdir -p build/linux build/windows build/macos
+
+          # NOTE (mristin):
+          # The .gdignore hides the packages from Godot, which would otherwise
+          # try to load the camera extension of the Windows package, and fail,
+          # on the other platforms.
+          touch build/.gdignore
+
+          # NOTE (mristin):
+          # Godot builds the C# part for each platform itself (dotnet publish),
+          # including the native libraries of ONNX Runtime. If that fails, Godot
+          # still exits with zero and writes a package without the C# part, so
+          # we check its output for errors ourselves.
+
+          export_release() {
+            "$GODOT" --headless --path . --export-release "$1" "$2" 2>&1 | tee "build/export-$1.log"
+            if grep -E "^(ERROR|SCRIPT ERROR)" "build/export-$1.log" | grep -v -E "leaked|still in use|Pages in use|Unreferenced static"; then
+              echo "The export for $1 reported errors." >&2
+              exit 1
+            fi
+          }
+
+          export_release "Linux" build/linux/jump-n-mine.x86_64
+          export_release "Windows" build/windows/jump-n-mine.exe
+          export_release "macOS" build/macos/jump-n-mine.zip
+          rm build/export-*.log
+
+          test -f build/linux/jump-n-mine.x86_64
+          test -f build/windows/jump-n-mine.exe
+          test -f build/macos/jump-n-mine.zip
+
+          ls -R build | head -100
+
+      - name: Check the packaged ONNX Runtime
+        run: |
+          # NOTE (mristin):
+          # The C# part and ONNX Runtime must be in every package, the latter
+          # for both the Apple Silicon and the Intel Macs, and exactly the
+          # native libraries of the version we checked above.
+          native="$HOME/.nuget/packages/microsoft.ml.onnxruntime/${ORT_VERSION}/runtimes"
+
+          cmp build/linux/data_JumpNMine_linuxbsd_x86_64/libonnxruntime.so \
+            "${native}/linux-x64/native/libonnxruntime.so"
+          cmp build/windows/data_JumpNMine_windows_x86_64/onnxruntime.dll \
+            "${native}/win-x64/native/onnxruntime.dll"
+
+          unzip -q build/macos/jump-n-mine.zip -d build/macos-check
+          arm64="$(find build/macos-check -path '*data_JumpNMine_macos_arm64/libonnxruntime.dylib' | head -n 1)"
+          x86_64="$(find build/macos-check -path '*data_JumpNMine_macos_x86_64/libonnxruntime.dylib' | head -n 1)"
+          test -n "${arm64}" && test -n "${x86_64}"
+
+          # NOTE (mristin):
+          # Godot signs the libraries of the macOS app (ad hoc), so they differ
+          # from those of the NuGet package; we check the version which ONNX
+          # Runtime carries in them instead.
+          version_pattern="(^|[^0-9.])${ORT_VERSION//./\\.}([^0-9]|$)"
+          for library in "${arm64}" "${x86_64}"; do
+            if ! strings -a "${library}" | grep -q -E "${version_pattern}"; then
+              echo "${library} is not ONNX Runtime ${ORT_VERSION}." >&2
+              exit 1
+            fi
+          done
+          rm -rf build/macos-check
+
+          echo "Every package carries ONNX Runtime ${ORT_VERSION}."
+
+      - name: Add the camera extension to the Windows package
+        run: |
+          # NOTE (mristin):
+          # Godot 4.6 implements no camera on Windows, so the Windows package
+          # brings CameraServerExtension along. The game loads it from the
+          # directory of the executable; see scenes/vision/camera_extension.gd.
+          cp addons/CameraServerExtension/CameraServerExtension.gdextension \
+            addons/CameraServerExtension/libcameraserver-extension.windows.dll \
+            build/windows/
+          mkdir -p build/windows/licenses/camera-server-extension
+          cp addons/CameraServerExtension/LICENSE build/windows/licenses/camera-server-extension/
+
+          # NOTE (mristin):
+          # The extension must point at the library which we ship next to it.
+          grep -q "libcameraserver-extension.windows.dll" build/windows/CameraServerExtension.gdextension
+
+      - name: Collect the licenses
+        run: |
+          # NOTE (mristin):
+          # Every package carries our license, the third-party notices and
+          # the license texts of all the components we distribute (see
+          # THIRD_PARTY_NOTICES.md).
+          mkdir -p notices/licenses/godot notices/licenses/onnxruntime notices/licenses/models
+          cp LICENSE THIRD_PARTY_NOTICES.md notices/
+          cp licenses/godot/LICENSE.txt licenses/godot/COPYRIGHT.txt notices/licenses/godot/
+          for model in yolox yunet sface rtmpose; do
+            cp "scenes/vision/${model}/model/LICENSE" "notices/licenses/models/${model}-LICENSE"
+          done
+          ort_dir="$HOME/.nuget/packages/microsoft.ml.onnxruntime/${ORT_VERSION}"
+          cp "${ort_dir}/LICENSE" "${ort_dir}/ThirdPartyNotices.txt" notices/licenses/onnxruntime/
+          find notices -type f
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp -r notices/. build/linux/
+          cp -r notices/. build/windows/
+          (cd build/linux && zip -q -r "../../dist/jump-n-mine-${PACKAGE_VERSION}-linux-x86_64.zip" .)
+          (cd build/windows && zip -q -r "../../dist/jump-n-mine-${PACKAGE_VERSION}-windows-x86_64.zip" .)
+
+          # NOTE (mristin):
+          # Godot packs the macOS app as a zip already; we add the notices
+          # next to the app. The app is universal.
+          cp build/macos/jump-n-mine.zip "dist/jump-n-mine-${PACKAGE_VERSION}-macos-universal.zip"
+          (cd notices && zip -q -r "../dist/jump-n-mine-${PACKAGE_VERSION}-macos-universal.zip" .)
+
+          ls -l dist
+
+      - name: Upload the packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jump-n-mine-${{ env.PACKAGE_VERSION }}
+          path: dist/*
+
+      - name: Attach the packages to the release
+        if: env.RELEASE_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${RELEASE_TAG}" dist/* --clobber --repo "${{ github.repository }}"

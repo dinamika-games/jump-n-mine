@@ -1,0 +1,52 @@
+extends SceneTree
+## Take a screenshot of a screen, e.g., to review it:
+##
+##   $GODOT --path . --windowed --resolution 1920x1080 --script dev/pictures/screenshot.gd -- \
+##       res://scenes/intro/intro.tscn shot.png 3 [--level=3] [--bots=2] [--no-camera]
+##
+## The arguments: the scene, the picture to write and how many seconds to wait;
+## --level sets the level, and --bots lets bots play its dwarves (see Level);
+## --gems=<n>, --house=<stage> and --boosters=<n> fill the purse of the
+## expedition (without saving it), to show the shop and the house; --frame=<n>
+## shows the n-th frame of the story, with its caption written.
+##
+## dev/pictures/take_screenshots.py takes the screenshots of all the screens on
+## a virtual display (Xvfb), so that no window opens.
+
+
+func _initialize() -> void:
+    _run.call_deferred()
+
+
+func _run() -> void:
+    var args := OS.get_cmdline_user_args()
+    var scene := args[0]
+    var output := args[1]
+    var seconds := float(args[2]) if args.size() > 2 else 2.0
+    for arg in args:
+        if arg.begins_with("--level="):
+            Flow.level_index = int(arg.trim_prefix("--level=")) - 1
+        if arg.begins_with("--world="):
+            Flow.world = int(arg.trim_prefix("--world="))
+        var purse: Purse = root.get_node("/root/Session").purse
+        if arg.begins_with("--gems="):
+            purse.gems = int(arg.trim_prefix("--gems="))
+        if arg.begins_with("--house="):
+            for part in Economy.HOUSE_PARTS:
+                purse.house[part["id"]] = int(arg.trim_prefix("--house="))
+        if arg.begins_with("--boosters="):
+            for kind in Mine.BOOSTERS:
+                purse.boosters[kind] = int(arg.trim_prefix("--boosters="))
+    change_scene_to_file(scene)
+    for arg in args:
+        if arg.begins_with("--frame="):
+            # NOTE (mristin):
+            # Show a later frame of the story (see scenes/story/story.gd).
+            await process_frame
+            await process_frame
+            current_scene.show_frame(int(arg.trim_prefix("--frame=")) - 1, true)
+    await create_timer(seconds).timeout
+    var image := root.get_texture().get_image()
+    image.save_png(output)
+    print("Wrote ", output)
+    quit()

@@ -1,0 +1,16 @@
+%%MIDI program 57
+%%MIDI droneprog 19
+X:1
+T:Calon L\^an
+% source: https://nigelgatherer.com/tunes/tunes/zWorld/ABC/Calon.html (score https://nigelgatherer.com/tunes/tunes/zWorld/ABC/Calon/Calon.pdf, top line)
+% status: composer John Hughes (1872-1914), died 1914
+O:Wales
+C:John Hughes
+M:3/4
+L:1/8
+Q:1/4=90
+K:G
+DG | B3 G AB | G2 D2 EF | G3 E cB | B2 A2 DG |
+B3 G AB | G2 E2 GE | D3 G GF | G4 B>G |
+d3 B AG | G2 F2 A>B | c3 c BA | B4 DD |
+E3 E FF | G2 A2 GA | B3 G A/G/F | G4 |]

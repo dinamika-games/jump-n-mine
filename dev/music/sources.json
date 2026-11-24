@@ -1,0 +1,180 @@
+{
+  "_comment": "The music of the game (see THIRD_PARTY_NOTICES.md). dev/music/fetch_music.py downloads each MIDI file or score (checking its license where the site tells it) or reads our own transcription (dev/music/melodies/<slug>.abc), and writes assets/music/<slug>.mid; dev/music/render_music.py renders it into assets/music/<slug>.ogg. instruments maps a track name (or index, or * for all) to an instrument of the renderer; tempo (quarters per minute) replaces the tempo of a score; repeat plays a song several times (e.g., a short song with several verses).",
+  "songs": [
+    {
+      "slug": "glueck_auf",
+      "title": "Glück auf, der Steiger kommt",
+      "about": "The traditional song of the miners of the Ore Mountains (Germany)",
+      "credit": "Melody traditional; set and sequenced by Peter Gerloff (Rabanus Flavus)",
+      "license": "CC0",
+      "page": "https://commons.wikimedia.org/wiki/File:Gl%C3%BCck_auf,_der_Steiger_kommt.mid",
+      "commons": "File:Glück auf, der Steiger kommt.mid",
+      "format": "midi"
+    },
+    {
+      "slug": "clementine",
+      "title": "Oh My Darling, Clementine",
+      "about": "An American song of the gold rush (1884): the daughter of a miner, forty-niner",
+      "credit": "Melody traditional; set and sequenced by Peter Gerloff (Rabanus Flavus)",
+      "license": "CC0",
+      "page": "https://commons.wikimedia.org/wiki/File:O_My_Darling_Clementine.mid",
+      "commons": "File:O My Darling Clementine.mid",
+      "format": "midi",
+      "repeat": 2
+    },
+    {
+      "slug": "bergmannslied",
+      "title": "Bergmannslied, Op. 4 No. 4",
+      "about": "A song of the miners by Louise Reichardt (1779-1826) on a poem of Novalis, himself a mining engineer",
+      "credit": "Louise Reichardt; transcribed by the contributors to OpenScore Lieder",
+      "license": "CC0",
+      "page": "https://github.com/OpenScore/Lieder/tree/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/4_Bergmannslied",
+      "download": "https://raw.githubusercontent.com/OpenScore/Lieder/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/4_Bergmannslied/lc5002062.mxl",
+      "format": "musicxml",
+      "tempo": 66,
+      "instruments": {
+        "Voice": "reed"
+      }
+    },
+    {
+      "slug": "noch_ein_bergmannslied",
+      "title": "Noch ein Bergmannslied, Op. 4 No. 5",
+      "about": "Another song of the miners by Louise Reichardt (1779-1826) on a poem of Novalis",
+      "credit": "Louise Reichardt; transcribed by the contributors to OpenScore Lieder",
+      "license": "CC0",
+      "page": "https://github.com/OpenScore/Lieder/tree/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/5_Noch_ein_Bergmannslied",
+      "download": "https://raw.githubusercontent.com/OpenScore/Lieder/main/scores/Reichardt,_Louise/6_Lieder_von_Novalis,_Op.4/5_Noch_ein_Bergmannslied/lc5092612.mxl",
+      "format": "musicxml",
+      "tempo": 88,
+      "repeat": 3,
+      "instruments": {
+        "Voice": "brass"
+      }
+    },
+    {
+      "slug": "hall_of_the_mountain_king",
+      "title": "In the Hall of the Mountain King, Op. 46 No. 4",
+      "about": "Edvard Grieg (1843-1907), from Peer Gynt: the trolls in the mountain",
+      "credit": "Edvard Grieg; typeset by the contributors to the Mutopia Project",
+      "license": "Public domain",
+      "page": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1888",
+      "download": "https://www.mutopiaproject.org/ftp/GriegE/O46/Dans_l_antre_du_roi_de_la_montagne/Dans_l_antre_du_roi_de_la_montagne.mid",
+      "format": "midi"
+    },
+    {
+      "slug": "march_of_the_dwarfs",
+      "title": "Troldtog (March of the Dwarfs), Op. 54 No. 3",
+      "about": "Edvard Grieg (1843-1907), from the Lyric Pieces",
+      "credit": "Edvard Grieg; typeset by the contributors to the Mutopia Project",
+      "license": "Public domain",
+      "page": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=2014",
+      "download": "https://www.mutopiaproject.org/ftp/GriegE/O54/Troldtog/Troldtog.mid",
+      "format": "midi"
+    },
+    {
+      "slug": "mountaineers_song",
+      "title": "Lualåt (The Mountaineer's Song), Op. 73 No. 7",
+      "about": "Edvard Grieg (1843-1907), from Moods",
+      "credit": "Edvard Grieg; typeset by the contributors to the Mutopia Project",
+      "license": "Public domain",
+      "page": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=1628",
+      "download": "https://www.mutopiaproject.org/ftp/GriegE/O73/7-MountaineersSong/7-MountaineersSong.mid",
+      "format": "midi"
+    },
+    {
+      "slug": "cwm_rhondda",
+      "title": "Cwm Rhondda",
+      "about": "The Welsh hymn of John Hughes (1873-1932), who started working at a colliery as a boy; sung in the mining valleys of South Wales",
+      "credit": "John Hughes; typeset by the contributors to the Mutopia Project",
+      "license": "Public domain",
+      "page": "https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=523",
+      "download": "https://www.mutopiaproject.org/ftp/HughesJ/CwmRhondda/CwmRhondda.mid",
+      "format": "midi",
+      "repeat": 2,
+      "instruments": {
+        "*": "brass"
+      }
+    },
+    {
+      "slug": "bonny_pit_laddie",
+      "title": "The Bonny Pit Laddie",
+      "about": "A traditional song of the coal miners of Northumberland and Durham",
+      "credit": "Melody traditional, after Bruce and Stokoe, Northumbrian Minstrelsy (1882); our transcription",
+      "license": "Public domain",
+      "page": "https://folkinfo.mainlynorfolk.info/songs/abc/492.abc",
+      "format": "abc",
+      "repeat": 2
+    },
+    {
+      "slug": "colliers_rant",
+      "title": "The Collier's Rant",
+      "about": "A traditional song of the colliers of Tyneside (18th century)",
+      "credit": "Melody traditional, after Bruce and Stokoe (1882) as printed by R. Palmer; our transcription",
+      "license": "Public domain",
+      "page": "https://folkinfo.mainlynorfolk.info/songs/abc/174.abc",
+      "format": "abc",
+      "repeat": 3
+    },
+    {
+      "slug": "miners_lifeguard",
+      "title": "The Miner's Lifeguard",
+      "about": "An American song of the miners' union, on the tune of \"Life's Railway to Heaven\"",
+      "credit": "Melody by Charles D. Tillman (1890); our transcription",
+      "license": "Public domain",
+      "page": "https://nethymnal.org/htm/l/r/lrailway.htm",
+      "format": "abc",
+      "repeat": 2
+    },
+    {
+      "slug": "calon_lan",
+      "title": "Calon Lân",
+      "about": "The Welsh hymn of John Hughes (1872-1914), sung in the mining valleys of Wales",
+      "credit": "Melody by John Hughes; our transcription",
+      "license": "Public domain",
+      "page": "https://nigelgatherer.com/tunes/tunes/zWorld/ABC/Calon.html",
+      "format": "abc",
+      "repeat": 2
+    },
+    {
+      "slug": "schon_wieder_toent",
+      "title": "Schon wieder tönt vom Schachte her",
+      "about": "A traditional German miners' song: the bell of the shaft calls the miners in",
+      "credit": "Melody traditional, after Erk and Böhme, Deutscher Liederhort (1893), as encoded in the Essen Folksong Collection; our transcription",
+      "license": "Public domain",
+      "page": "https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/erk/deut1892.krn",
+      "format": "abc",
+      "repeat": 2
+    },
+    {
+      "slug": "bergmann_im_schwarzen_gewand",
+      "title": "Der Bergmann im schwarzen Gewand",
+      "about": "A traditional German miners' song from the Deister",
+      "credit": "Melody traditional, after Böhme, Volksthümliche Lieder der Deutschen (1895), as encoded in the Essen Folksong Collection; our transcription",
+      "license": "Public domain",
+      "page": "https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/boehme/deut2797.krn",
+      "format": "abc",
+      "transpose": 12,
+      "repeat": 2
+    },
+    {
+      "slug": "trimdon_grange",
+      "title": "Trimdon Grange Explosion",
+      "about": "Tommy Armstrong (1848-1920), the pitman poet of Durham, set his song to the traditional air \"Go and Leave Me If You Wish It\"",
+      "credit": "Melody traditional, as noted by A. L. Lloyd and printed by R. Palmer; our transcription",
+      "license": "Public domain",
+      "page": "https://folkinfo.mainlynorfolk.info/songs/abc/176.abc",
+      "format": "abc",
+      "repeat": 2
+    },
+    {
+      "slug": "bergleut_sind_die_schoensten_leut",
+      "title": "Bergleut sind die schönsten Leut",
+      "about": "A traditional German miners' song: the miners are the finest people",
+      "credit": "Melody traditional, after Erk and Böhme, Deutscher Liederhort (1893), as encoded in the Essen Folksong Collection; our transcription",
+      "license": "Public domain",
+      "page": "https://github.com/ccarh/essen-folksong-collection/blob/master/europa/deutschl/erk/deut1894.krn",
+      "format": "abc",
+      "repeat": 3
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>JumpNMine.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      NOTE (mristin):
+      We compile the Godot-free sources directly since the game assembly itself
+      can not be loaded outside of the engine.
+    -->
+    <Compile Include="../../scenes/vision/core/*.cs" LinkBase="Linked/core" />
+    <Compile Include="../../scenes/vision/yolox/YoloxModel.cs" Link="Linked/YoloxModel.cs" />
+    <Compile Include="../../scenes/vision/rtmpose/RtmPoseModel.cs" Link="Linked/RtmPoseModel.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../scenes/vision/yolox/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../scenes/vision/yunet/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../scenes/vision/sface/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../scenes/vision/rtmpose/model/*.onnx" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="data/**/*.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NOTE (mristin): Keep the same version as the game, see JumpNMine.csproj. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.19.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.16" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>
